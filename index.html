@@ -230,6 +230,39 @@
     border-radius:4px; padding:4px 7px;
     font-size:11px; font-weight:500; line-height:1.4;
   }
+  .tt-block-meta {
+    display:block;
+    margin-top:2px;
+    color:rgba(255,255,255,.8);
+    font-size:10px;
+    font-weight:400;
+  }
+  .filter-bar {
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .filter-bar select {
+    min-width:180px;
+    padding:10px 12px;
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:var(--radius-sm);
+    color:var(--text);
+    font-family:'Sarabun',sans-serif;
+    font-size:14px;
+    outline:none;
+  }
+  .filter-bar select:focus {
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(91,141,239,.12);
+  }
+  .tt-caption {
+    font-size:13px;
+    color:var(--text2);
+    margin-bottom:16px;
+  }
 
   /* ── FORM ELEMENTS ── */
   .form-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
@@ -465,12 +498,12 @@
     <!-- REGISTER FORM -->
     <div id="form-register" style="display:none">
       <div class="field-group">
-        <label>ชื่อ-นามสกุล</label>
-        <input type="text" id="reg-name" placeholder="เช่น สมชาย ใจดี">
-      </div>
-      <div class="field-group">
         <label>ชื่อผู้ใช้</label>
         <input type="text" id="reg-username" placeholder="ไม่มีช่องว่าง">
+      </div>
+      <div class="field-group">
+        <label>ห้อง</label>
+        <input type="text" id="reg-room" placeholder="เช่น 3/10">
       </div>
       <div class="field-group">
         <label>รหัสผ่าน</label>
@@ -563,10 +596,17 @@
     <!-- ── TIMETABLE ── -->
     <div class="page" id="page-timetable">
       <div class="section-header">
-        <div class="section-title">📅 ตารางเรียนของฉัน</div>
-        <button class="btn-add" onclick="openTTModal()">+ เพิ่มคาบเรียน</button>
+        <div>
+          <div class="section-title">📅 ตารางเรียน</div>
+          <div class="notice">เลือกดูตารางรวมทุกห้อง หรือดูเฉพาะห้องที่ต้องการได้</div>
+        </div>
+        <div class="filter-bar">
+          <select id="tt-room-filter" onchange="setTimetableRoomFilter(this.value)"></select>
+          <button class="btn-add" onclick="openTTModal()">+ เพิ่มคาบเรียน</button>
+        </div>
       </div>
       <div class="card">
+        <div class="tt-caption" id="tt-summary"></div>
         <div class="timetable-wrap">
           <div class="timetable" id="my-timetable"></div>
         </div>
@@ -604,7 +644,7 @@
         </div>
       </div>
       <div style="margin-top:20px">
-        <div class="card-title" style="margin-bottom:14px">รายการคาบเรียน</div>
+        <div class="card-title" style="margin-bottom:14px">รายการคาบเรียนของฉัน</div>
         <div id="tt-list"></div>
       </div>
     </div>
@@ -872,14 +912,21 @@ function seedPeriodSelects(){
 // ════════════════════════════════
 // DATA SCHEMA
 // ════════════════════════════════
-// users: [{id,name,username,password,isAdmin,color}]
+// users: [{id,name,username,room,password,isAdmin,color}]
 // timetable_<uid>: [{id,subject,day,start,end}]  (0-indexed periods)
 // appointments: [{id,title,date,time,location,note,createdBy}]
 // assignments: [{id,title,subject,due,priority,note,doneBy:[uid]}]
 // groupCode: string
 
-function getUsers(){ return load('users',[]); }
-function saveUsers(u){ save('users',u); }
+function normalizeRoom(room=''){ return room.toString().trim().toUpperCase(); }
+function normalizeUser(user={}){
+  const username=(user.username||'').trim();
+  const room=normalizeRoom(user.room||'');
+  const name=(user.name||username||'').trim();
+  return {...user, username, room, name, color:user.color||colorFor(username||name||uid())};
+}
+function getUsers(){ return (load('users',[])||[]).map(normalizeUser); }
+function saveUsers(u){ save('users',u.map(normalizeUser)); }
 function getAppts(){ return load('appointments',[]); }
 function saveAppts(a){ save('appointments',a); }
 function getAsgns(){ return load('assignments',[]); }
@@ -887,8 +934,12 @@ function saveAsgns(a){ save('assignments',a); }
 function getGroupCode(){ return load('groupCode', genCode()); }
 function genCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<6;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; }
 function regenCode(){ const c=genCode(); save('groupCode',c); renderAdmin(); }
+function getRoomOptions(){
+  return [...new Set(getUsers().map(u=>u.room).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+}
 
 let currentUser=null;
+let timetableRoomFilter='all';
 
 // ════════════════════════════════
 // AUTH
@@ -921,24 +972,24 @@ function doLogin(){
 }
 
 function doRegister(){
-  const name=document.getElementById('reg-name').value.trim();
   const uname=document.getElementById('reg-username').value.trim();
+  const room=normalizeRoom(document.getElementById('reg-room').value);
   const pass=document.getElementById('reg-password').value;
   const code=document.getElementById('reg-groupcode').value.trim().toUpperCase();
   const errEl=document.getElementById('reg-err');
-  if(!name||!uname||!pass||pass.length<4){ errEl.textContent='กรอกข้อมูลให้ครบ และรหัสผ่านอย่างน้อย 4 ตัว'; errEl.style.display='block'; return; }
+  if(!uname||!room||!pass||pass.length<4){ errEl.textContent='กรอกชื่อผู้ใช้ ห้อง และรหัสผ่านอย่างน้อย 4 ตัว'; errEl.style.display='block'; return; }
   const gc=getGroupCode();
   if(code!==gc){ errEl.textContent='รหัสเข้าร่วมกลุ่มไม่ถูกต้อง'; errEl.style.display='block'; return; }
   const users=getUsers();
   if(users.find(x=>x.username===uname)){ errEl.textContent='ชื่อผู้ใช้นี้มีอยู่แล้ว'; errEl.style.display='block'; return; }
-  const newUser={id:uid(),name,username:uname,password:pass,isAdmin:false,color:colorFor(uname)};
+  const newUser={id:uid(),name:uname,username:uname,room,password:pass,isAdmin:false,color:colorFor(uname)};
   users.push(newUser); saveUsers(users);
   currentUser=newUser; startApp();
 }
 
 function seedDefaultAdmin(){
   const code=genCode(); save('groupCode',code);
-  const admin={id:uid(),name:'Admin',username:'admin',password:'admin1234',isAdmin:true,color:COLORS[0]};
+  const admin={id:uid(),name:'Admin',username:'admin',room:'',password:'admin1234',isAdmin:true,color:COLORS[0]};
   saveUsers([admin]);
   alert(`🎉 ระบบสร้างบัญชี Admin แล้ว!\nUsername: admin\nPassword: admin1234\nรหัสกลุ่ม: ${code}\n\n(กรุณาเปลี่ยนรหัสผ่านทันที)`);
 }
@@ -953,6 +1004,7 @@ function doLogout(){
 }
 
 function startApp(){
+  currentUser=normalizeUser(currentUser);
   sessionStorage.setItem('gs_session', currentUser.id);
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
@@ -1067,6 +1119,16 @@ function renderFreeTimes(){
 // ════════════════════════════════
 function openTTModal(){ document.getElementById('tt-modal').style.display='block'; }
 function closeTTModal(){ document.getElementById('tt-modal').style.display='none'; }
+function setTimetableRoomFilter(value){ timetableRoomFilter=value; renderTimetable(); }
+function syncTimetableRoomFilter(){
+  const sel=document.getElementById('tt-room-filter');
+  if(!sel) return timetableRoomFilter;
+  const rooms=getRoomOptions();
+  sel.innerHTML=`<option value="all">ดูรวมทุกห้อง</option>${rooms.map(room=>`<option value="${room}">ห้อง ${room}</option>`).join('')}`;
+  if(timetableRoomFilter!=='all' && !rooms.includes(timetableRoomFilter)) timetableRoomFilter='all';
+  sel.value=timetableRoomFilter;
+  return timetableRoomFilter;
+}
 
 function addTTEntry(){
   const subject=document.getElementById('tt-subject').value.trim();
@@ -1082,27 +1144,41 @@ function addTTEntry(){
 }
 
 function renderTimetable(){
-  const tt=load('tt_'+currentUser.id,[]);
+  const myTT=load('tt_'+currentUser.id,[]);
+  const selectedRoom=syncTimetableRoomFilter();
+  const users=getUsers().filter(u=>!u.isAdmin);
+  const visibleUsers=selectedRoom==='all' ? users : users.filter(u=>u.room===selectedRoom);
+  const allEntries=visibleUsers.flatMap(u=>load('tt_'+u.id,[]).map(e=>({...e,user:u})));
+  const summary=document.getElementById('tt-summary');
+  if(selectedRoom==='all'){
+    summary.textContent=visibleUsers.length>0
+      ? `กำลังดูตารางรวมของ ${visibleUsers.length} คน จาก ${getRoomOptions().length || 0} ห้อง`
+      : 'ยังไม่มีสมาชิกที่ระบุห้อง';
+  } else {
+    summary.textContent=visibleUsers.length>0
+      ? `กำลังดูตารางของห้อง ${selectedRoom} จำนวน ${visibleUsers.length} คน`
+      : `ยังไม่มีสมาชิกในห้อง ${selectedRoom}`;
+  }
   // Grid
   const grid=document.getElementById('my-timetable');
   let html='<div class="tt-header"></div>'+DAYS.map(d=>`<div class="tt-header">${d}</div>`).join('');
   for(let p=0;p<PERIODS.length-1;p++){
     html+=`<div class="tt-time">${PERIODS[p]}</div>`;
     for(let d=0;d<5;d++){
-      const entries=tt.filter(e=>e.day===d && e.start<=p && e.end>p);
-      html+=`<div class="tt-cell">${entries.map(e=>`<div class="tt-block">${e.subject}</div>`).join('')}</div>`;
+      const entries=allEntries.filter(e=>e.day===d && e.start<=p && e.end>p);
+      html+=`<div class="tt-cell">${entries.map(e=>`<div class="tt-block">${e.subject}<span class="tt-block-meta">@${e.user.username}${e.user.room?` · ห้อง ${e.user.room}`:''}</span></div>`).join('')}</div>`;
     }
   }
   grid.innerHTML=html;
   // List
   const listEl=document.getElementById('tt-list');
-  if(tt.length===0){ listEl.innerHTML='<div class="empty-state"><div class="big">📚</div>ยังไม่มีคาบเรียน</div>'; return; }
-  listEl.innerHTML=tt.map(e=>`
+  if(myTT.length===0){ listEl.innerHTML='<div class="empty-state"><div class="big">📚</div>ยังไม่มีคาบเรียน</div>'; return; }
+  listEl.innerHTML=myTT.map(e=>`
     <div class="event-item" style="margin-bottom:8px">
       <div class="event-dot" style="background:var(--accent)"></div>
       <div style="flex:1">
         <div class="event-title">${e.subject}</div>
-        <div class="event-sub">${DAYS[e.day]} · ${PERIODS[e.start]} – ${PERIODS[e.end]}</div>
+        <div class="event-sub">${currentUser.room?`ห้อง ${currentUser.room} · `:''}${DAYS[e.day]} · ${PERIODS[e.start]} – ${PERIODS[e.end]}</div>
       </div>
       <button class="btn-del" onclick="delTT('${e.id}')">🗑</button>
     </div>`).join('');
@@ -1248,7 +1324,7 @@ function renderMembers(){
       <div class="member-avatar" style="background:${u.color}">${initials(u.name)}</div>
       <div>
         <div class="member-name">${u.name} ${u.isAdmin?'<span class="admin-badge">Admin</span>':''}</div>
-        <div class="member-role">@${u.username}</div>
+        <div class="member-role">@${u.username}${u.room?` · ห้อง ${u.room}`:''}</div>
       </div>
     </div>`).join('');
 }
@@ -1266,7 +1342,7 @@ function renderAdmin(){
       <div class="member-avatar" style="background:${u.color};width:32px;height:32px;font-size:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">${initials(u.name)}</div>
       <div style="flex:1">
         <div class="event-title">${u.name} ${u.isAdmin?'<span class="admin-badge">Admin</span>':''}</div>
-        <div class="event-sub">@${u.username}</div>
+        <div class="event-sub">@${u.username}${u.room?` · ห้อง ${u.room}`:''}</div>
       </div>
       ${!u.isAdmin&&u.id!==currentUser.id?`<button class="btn-del" onclick="removeUser('${u.id}')">ลบ</button>`:''}
       ${!u.isAdmin&&u.id!==currentUser.id?`<button class="btn-add" style="padding:6px 12px;font-size:12px" onclick="makeAdmin('${u.id}')">ตั้งเป็น Admin</button>`:''}
