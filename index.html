@@ -419,6 +419,10 @@
         <input type="password" id="login-password" placeholder="กรอกรหัสผ่าน">
       </div>
       <div class="err-msg" id="login-err">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</div>
+      <label style="display:flex;align-items:center;gap:8px;margin:14px 0 4px;cursor:pointer;font-size:13px;color:var(--text2)">
+        <input type="checkbox" id="remember-me" style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer">
+        จำฉันไว้ในอุปกรณ์นี้
+      </label>
       <button class="btn-primary" onclick="doLogin()">เข้าสู่ระบบ</button>
       <div class="login-switch">ยังไม่มีบัญชี? <a onclick="toggleForm('register')">สมัครสมาชิก</a></div>
     </div>
@@ -813,12 +817,20 @@ function toggleForm(t){
 function doLogin(){
   const u=document.getElementById('login-username').value.trim();
   const p=document.getElementById('login-password').value;
+  const remember=document.getElementById('remember-me').checked;
   const users=getUsers();
   // seed default admin if empty
   if(users.length===0){ seedDefaultAdmin(); return doLogin(); }
   const found=users.find(x=>x.username===u && x.password===p);
   if(!found){ document.getElementById('login-err').style.display='block'; return; }
   currentUser=found;
+  if(remember){
+    localStorage.setItem('gs_remember', found.id);
+    localStorage.setItem('gs_last_username', u);
+  } else {
+    localStorage.removeItem('gs_remember');
+    localStorage.removeItem('gs_last_username');
+  }
   startApp();
 }
 
@@ -847,6 +859,7 @@ function seedDefaultAdmin(){
 
 function doLogout(){
   sessionStorage.removeItem('gs_session');
+  localStorage.removeItem('gs_remember');
   currentUser=null;
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
@@ -1321,11 +1334,23 @@ function clearRandHistory(){
 // INIT
 // ════════════════════════════════
 window.addEventListener('load',()=>{
-  // If already "logged in" via session flag
+  // Check remember-me (localStorage) first — persists across browser restarts
+  const remembered=localStorage.getItem('gs_remember');
+  if(remembered){
+    const u=getUsers().find(x=>x.id===remembered);
+    if(u){ currentUser=u; startApp(); return; }
+  }
+  // Then check session (sessionStorage) — only for current tab/session
   const sess=sessionStorage.getItem('gs_session');
   if(sess){
     const u=getUsers().find(x=>x.id===sess);
     if(u){ currentUser=u; startApp(); return; }
+  }
+  // Pre-fill username if remembered
+  const savedUsername=localStorage.getItem('gs_last_username');
+  if(savedUsername){
+    document.getElementById('login-username').value=savedUsername;
+    document.getElementById('remember-me').checked=true;
   }
 });
 
