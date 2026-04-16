@@ -391,6 +391,41 @@
   .rand-hist-item:last-child { border-bottom:none; }
   @media(max-width:700px){ #random-layout { grid-template-columns:1fr !important; } }
 
+  /* ── BUDDY ── */
+  .buddy-card-big {
+    background: linear-gradient(135deg, #1e2540, #2a1e35);
+    border: 2px solid var(--accent4);
+    border-radius: 20px;
+    padding: 40px 32px;
+    display: inline-block;
+    min-width: 260px;
+    animation: rollIn .5s ease;
+  }
+  .buddy-heart { font-size:48px; margin-bottom:12px; animation: heartBeat 1.2s ease infinite; }
+  @keyframes heartBeat {
+    0%,100% { transform:scale(1); }
+    50% { transform:scale(1.15); }
+  }
+  .buddy-name-big {
+    font-size:32px; font-weight:700; color:var(--accent4);
+    font-family:'Space Mono',monospace; letter-spacing:-1px;
+    margin-bottom:6px;
+  }
+  .buddy-username { font-size:14px; color:var(--text2); }
+  .buddy-no-draw {
+    font-size:15px; color:var(--text2); padding:20px;
+    background:var(--surface2); border-radius:var(--radius);
+    border:1px dashed var(--border);
+  }
+  .buddy-pair-row {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 14px; background:var(--surface2);
+    border:1px solid var(--border); border-radius:var(--radius-sm);
+    margin-bottom:8px;
+  }
+  .buddy-arrow { color:var(--accent4); font-size:18px; flex-shrink:0; }
+  @media(max-width:700px){ #buddy-admin-layout { grid-template-columns:1fr !important; } }
+
   /* Admin badge */
   .admin-badge {
     font-size:10px; background:rgba(240,196,106,.15); color:var(--accent4);
@@ -476,6 +511,7 @@
     <button class="nav-tab" onclick="goPage('assignments')">📝 งานที่ต้องส่ง</button>
     <button class="nav-tab" onclick="goPage('members')">👥 สมาชิก</button>
     <button class="nav-tab" onclick="goPage('random')">🎲 สุ่มกลุ่ม</button>
+    <button class="nav-tab" onclick="goPage('buddy')">💛 บัดดี้</button>
     <button class="nav-tab" id="admin-tab" onclick="goPage('admin')" style="display:none">⚙️ Admin</button>
   </div>
 
@@ -746,6 +782,56 @@
       </div>
     </div>
 
+
+    <!-- ── BUDDY ── -->
+    <div class="page" id="page-buddy">
+      <div class="section-header">
+        <div class="section-title">💛 ระบบบัดดี้</div>
+      </div>
+      <!-- USER VIEW: show my buddy -->
+      <div id="buddy-user-view">
+        <div class="card" id="buddy-reveal-card" style="text-align:center;padding:48px 24px">
+          <div id="buddy-reveal-content"></div>
+        </div>
+      </div>
+      <!-- ADMIN VIEW: setup + all pairs -->
+      <div id="buddy-admin-view" style="display:none">
+        <div id="buddy-setup-section">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px" id="buddy-admin-layout">
+            <div class="card">
+              <div class="card-title"><span class="icon">👥</span> เลือกผู้เข้าร่วม</div>
+              <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+                <button class="btn-add" style="padding:7px 14px;font-size:12px" onclick="buddySelectAll(true)">เลือกทั้งหมด</button>
+                <button class="btn-logout" style="padding:7px 14px;font-size:12px" onclick="buddySelectAll(false)">ยกเลิกทั้งหมด</button>
+              </div>
+              <div id="buddy-member-list" style="display:flex;flex-direction:column;gap:8px"></div>
+            </div>
+            <div class="card">
+              <div class="card-title"><span class="icon">⚙️</span> จัดการ</div>
+              <p style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.7">
+                เลือกสมาชิกด้านซ้าย แล้วกดสุ่ม<br>
+                ระบบจะจับคู่แบบ <b style="color:var(--accent3)">ไม่มีซ้ำ</b> และ <b style="color:var(--accent3)">ไม่ได้ตัวเอง</b><br>
+                สมาชิกเห็นได้เฉพาะบัดดี้ของตัวเอง<br>
+                Admin เห็นคู่ทั้งหมด
+              </p>
+              <button onclick="doShuffleBuddy()" style="width:100%;padding:14px;font-size:16px;font-weight:700;background:linear-gradient(135deg,var(--accent4),#e09a30);color:#1a1000;border:none;border-radius:var(--radius);cursor:pointer;font-family:Sarabun,sans-serif;margin-bottom:12px;">
+                💛 สุ่มบัดดี้!
+              </button>
+              <button onclick="doResetBuddy()" style="width:100%;padding:12px;font-size:14px;background:transparent;border:1px solid var(--danger);color:var(--danger);border-radius:var(--radius);cursor:pointer;font-family:Sarabun,sans-serif;">
+                🔄 รีเซ็ตและสุ่มใหม่
+              </button>
+              <div style="font-size:12px;color:var(--text3);margin-top:10px">การรีเซ็ตจะลบผลการสุ่มทั้งหมด</div>
+            </div>
+          </div>
+        </div>
+        <!-- All pairs table (admin only) -->
+        <div class="card" id="buddy-pairs-card" style="margin-top:20px;display:none">
+          <div class="card-title"><span class="icon">🔍</span> คู่บัดดี้ทั้งหมด (Admin เท่านั้น)</div>
+          <div id="buddy-pairs-list"></div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /app -->
 
@@ -893,7 +979,7 @@ function goPage(name){
   });
   // render
   const renders={dashboard:renderDashboard,freetimes:renderFreeTimes,timetable:renderTimetable,
-    appointments:renderAppointments,assignments:()=>renderAssignments('pending'),members:renderMembers,admin:renderAdmin,random:renderRandom};
+    appointments:renderAppointments,assignments:()=>renderAssignments('pending'),members:renderMembers,admin:renderAdmin,random:renderRandom,buddy:renderBuddy};
   if(renders[name]) renders[name]();
 }
 
@@ -1328,6 +1414,159 @@ function renderRandHistory(){
 
 function clearRandHistory(){
   save('rand-history',[]); renderRandHistory();
+}
+
+// ════════════════════════════════
+// BUDDY SYSTEM
+// ════════════════════════════════
+// buddyPairs: {uid: buddyUid} stored in localStorage
+// buddyParticipants: [uid] — who was included in the draw
+
+let buddySelected = {}; // for admin setup UI
+
+function getBuddyPairs(){ return load('buddyPairs', null); }
+function saveBuddyPairs(p){ save('buddyPairs', p); }
+function getBuddyParticipants(){ return load('buddyParticipants', []); }
+function saveBuddyParticipants(p){ save('buddyParticipants', p); }
+
+function renderBuddy(){
+  const pairs = getBuddyPairs();
+  if(currentUser.isAdmin){
+    document.getElementById('buddy-user-view').style.display = 'none';
+    document.getElementById('buddy-admin-view').style.display = 'block';
+    renderBuddyAdminSetup();
+    if(pairs){
+      document.getElementById('buddy-pairs-card').style.display = 'block';
+      renderBuddyPairsTable(pairs);
+    } else {
+      document.getElementById('buddy-pairs-card').style.display = 'none';
+    }
+  } else {
+    document.getElementById('buddy-user-view').style.display = 'block';
+    document.getElementById('buddy-admin-view').style.display = 'none';
+    renderBuddyUserView(pairs);
+  }
+}
+
+function renderBuddyUserView(pairs){
+  const el = document.getElementById('buddy-reveal-content');
+  if(!pairs){
+    el.innerHTML = `<div class="buddy-no-draw">⏳ Admin ยังไม่ได้สุ่มบัดดี้ รอสักครู่นะ!</div>`;
+    return;
+  }
+  const myBuddyId = pairs[currentUser.id];
+  if(!myBuddyId){
+    el.innerHTML = `<div class="buddy-no-draw">😢 คุณไม่ได้อยู่ในรอบการสุ่มครั้งนี้</div>`;
+    return;
+  }
+  const users = getUsers();
+  const buddy = users.find(u => u.id === myBuddyId);
+  if(!buddy){
+    el.innerHTML = `<div class="buddy-no-draw">❓ ไม่พบข้อมูลบัดดี้</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <p style="font-size:14px;color:var(--text2);margin-bottom:20px">บัดดี้ของคุณคือ...</p>
+    <div class="buddy-card-big">
+      <div class="buddy-heart">💛</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:10px">
+        <div class="member-avatar" style="background:${buddy.color};width:52px;height:52px;font-size:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">${initials(buddy.name)}</div>
+      </div>
+      <div class="buddy-name-big">${buddy.name}</div>
+      <div class="buddy-username">@${buddy.username}</div>
+    </div>
+    <p style="font-size:12px;color:var(--text3);margin-top:20px">ผลการสุ่มจะเปลี่ยนได้ก็ต่อเมื่อ Admin รีเซ็ตเท่านั้น</p>
+  `;
+}
+
+function renderBuddyAdminSetup(){
+  const users = getUsers();
+  const participants = getBuddyParticipants();
+  users.forEach(u => {
+    if(buddySelected[u.id] === undefined)
+      buddySelected[u.id] = participants.length > 0 ? participants.includes(u.id) : true;
+  });
+  const el = document.getElementById('buddy-member-list');
+  el.innerHTML = users.map(u => `
+    <div class="rand-member-row ${buddySelected[u.id]?'selected':''}" onclick="toggleBuddyMember('${u.id}')">
+      <input type="checkbox" class="rand-cb" ${buddySelected[u.id]?'checked':''} onchange="toggleBuddyMember('${u.id}')" onclick="event.stopPropagation()">
+      <div class="member-avatar" style="background:${u.color};width:28px;height:28px;font-size:11px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0">${initials(u.name)}</div>
+      <span style="font-size:14px;font-weight:500">${u.name}</span>
+    </div>`).join('');
+}
+
+function toggleBuddyMember(id){
+  buddySelected[id] = !buddySelected[id];
+  renderBuddyAdminSetup();
+}
+
+function buddySelectAll(v){
+  getUsers().forEach(u => buddySelected[u.id] = v);
+  renderBuddyAdminSetup();
+}
+
+function doShuffleBuddy(){
+  const pairs = getBuddyPairs();
+  if(pairs){
+    if(!confirm('มีผลการสุ่มอยู่แล้ว หากสุ่มใหม่จะลบผลเดิมทิ้ง ยืนยัน?')) return;
+  }
+  const users = getUsers();
+  const pool = users.filter(u => buddySelected[u.id]);
+  if(pool.length < 2){ alert('ต้องเลือกอย่างน้อย 2 คน'); return; }
+  if(pool.length % 2 !== 0){
+    if(!confirm(`มีสมาชิก ${pool.length} คน (เลขคี่) จะมี 1 คนที่ไม่มีบัดดี้ ยืนยัน?`)) return;
+  }
+
+  // Shuffle using Fisher-Yates
+  const arr = [...pool];
+  for(let i = arr.length-1; i > 0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]] = [arr[j],arr[i]];
+  }
+
+  // Create derangement: pair arr[0]->arr[1], arr[1]->arr[0], arr[2]->arr[3] ...
+  // Actually do a "gift exchange" style: each person gets the next person in shuffled order
+  // This guarantees no one gets themselves
+  const newPairs = {};
+  const n = arr.length;
+  for(let i = 0; i < n; i++){
+    const giver = arr[i];
+    const receiver = arr[(i+1) % n]; // circular: last person gets first
+    newPairs[giver.id] = receiver.id;
+  }
+
+  saveBuddyPairs(newPairs);
+  saveBuddyParticipants(pool.map(u=>u.id));
+  renderBuddy();
+  alert('✅ สุ่มบัดดี้เสร็จแล้ว! สมาชิกสามารถเข้าหน้าบัดดี้เพื่อดูผลได้เลย');
+}
+
+function doResetBuddy(){
+  if(!confirm('รีเซ็ตผลการสุ่มบัดดี้ทั้งหมด? สมาชิกจะไม่เห็นบัดดี้จนกว่าจะสุ่มใหม่')) return;
+  saveBuddyPairs(null);
+  saveBuddyParticipants([]);
+  buddySelected = {};
+  localStorage.removeItem('gs_buddyPairs');
+  renderBuddy();
+}
+
+function renderBuddyPairsTable(pairs){
+  const users = getUsers();
+  const el = document.getElementById('buddy-pairs-list');
+  const entries = Object.entries(pairs);
+  if(entries.length === 0){ el.innerHTML = '<div class="empty-state">ไม่มีข้อมูล</div>'; return; }
+  el.innerHTML = entries.map(([giverId, receiverId]) => {
+    const giver = users.find(u=>u.id===giverId);
+    const receiver = users.find(u=>u.id===receiverId);
+    if(!giver||!receiver) return '';
+    return `<div class="buddy-pair-row">
+      <div class="member-avatar" style="background:${giver.color};width:32px;height:32px;font-size:12px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0">${initials(giver.name)}</div>
+      <span style="font-size:14px;font-weight:500;flex:1">${giver.name}</span>
+      <span class="buddy-arrow">💛→</span>
+      <div class="member-avatar" style="background:${receiver.color};width:32px;height:32px;font-size:12px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0">${initials(receiver.name)}</div>
+      <span style="font-size:14px;font-weight:500;flex:1">${receiver.name}</span>
+    </div>`;
+  }).join('');
 }
 
 // ════════════════════════════════
