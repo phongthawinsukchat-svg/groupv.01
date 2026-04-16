@@ -875,7 +875,29 @@
   </div><!-- /content -->
 </div><!-- /app -->
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+import { getAnalytics, isSupported as isAnalyticsSupported } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-analytics.js";
+import { getFirestore, doc, getDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDwN8Carzm53MeQVrVn8Gtfq_OW7dESwds",
+  authDomain: "groupsync-4dc3b.firebaseapp.com",
+  projectId: "groupsync-4dc3b",
+  storageBucket: "groupsync-4dc3b.firebasestorage.app",
+  messagingSenderId: "475343662341",
+  appId: "1:475343662341:web:cf22c2cd347b74326fdb6c",
+  measurementId: "G-63CKBM1FT6"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+const storeRef = doc(db, "groupsync", "main");
+
+isAnalyticsSupported().then((supported) => {
+  if (supported) getAnalytics(firebaseApp);
+}).catch(() => {});
+
 // ════════════════════════════════
 // CONSTANTS & HELPERS
 // ════════════════════════════════
@@ -889,8 +911,63 @@ const COLORS = [
   '#de8a5b','#5bdede','#de5b5b','#8de05b','#de5bb8'
 ];
 
-function save(key,val){ localStorage.setItem('gs_'+key, JSON.stringify(val)); }
-function load(key,def=null){ const v=localStorage.getItem('gs_'+key); return v?JSON.parse(v):def; }
+let storeCache={};
+let storeReady=false;
+let saveQueue=Promise.resolve();
+let activePage='dashboard';
+
+function cloneValue(val){
+  if(val===undefined) return undefined;
+  return JSON.parse(JSON.stringify(val));
+}
+
+function sanitizeStore(data={}){
+  const next={...data};
+  delete next._updatedAt;
+  return next;
+}
+
+async function initializeDataStore(){
+  const snap=await getDoc(storeRef);
+  storeCache=snap.exists()?sanitizeStore(snap.data()):{};
+  storeReady=true;
+  onSnapshot(storeRef,(docSnap)=>{
+    if(!docSnap.exists()) return;
+    storeCache=sanitizeStore(docSnap.data());
+    if(currentUser){
+      const freshUser=getUsers().find(u=>u.id===currentUser.id);
+      if(!freshUser){
+        doLogout();
+        alert('บัญชีนี้ไม่อยู่ในกลุ่มแล้ว');
+        return;
+      }
+      currentUser=normalizeUser(freshUser);
+      syncTopbar();
+      rerenderActivePage();
+    }
+  },(error)=>console.error('Firestore sync error:', error));
+}
+
+function queuePersist(key,val){
+  const payload={[key]:cloneValue(val),_updatedAt:Date.now()};
+  saveQueue=saveQueue
+    .then(()=>setDoc(storeRef,payload,{merge:true}))
+    .catch((error)=>{
+      console.error('Firestore save error:', error);
+      alert('บันทึกข้อมูลไป Firebase ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+    });
+  return saveQueue;
+}
+
+function save(key,val){
+  storeCache[key]=cloneValue(val);
+  if(storeReady) queuePersist(key,val);
+}
+
+function load(key,def=null){
+  const value=storeCache[key];
+  return value===undefined ? def : cloneValue(value);
+}
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function today(){ return new Date().toISOString().slice(0,10); }
 function daysUntil(d){ return Math.ceil((new Date(d)-new Date(today()))/(1000*86400)); }
@@ -940,6 +1017,26 @@ function getRoomOptions(){
 
 let currentUser=null;
 let timetableRoomFilter='all';
+
+function syncTopbar(){
+  if(!currentUser) return;
+  document.getElementById('top-name').textContent=currentUser.name;
+  const av=document.getElementById('top-avatar');
+  av.textContent=initials(currentUser.name);
+  av.style.background=currentUser.color;
+  document.getElementById('top-admin-badge').style.display=currentUser.isAdmin?'inline':'none';
+  document.getElementById('admin-tab').style.display=currentUser.isAdmin?'inline-block':'none';
+}
+
+function rerenderActivePage(){
+  const renders={dashboard:renderDashboard,freetimes:renderFreeTimes,timetable:renderTimetable,
+    appointments:renderAppointments,assignments:()=>renderAssignments(asgnFilter),members:renderMembers,admin:renderAdmin,random:renderRandom,buddy:renderBuddy};
+  if(activePage==='assignments'){
+    document.getElementById('asgn-tab-pending').classList.toggle('active',asgnFilter==='pending');
+    document.getElementById('asgn-tab-done').classList.toggle('active',asgnFilter==='done');
+  }
+  if(renders[activePage]) renders[activePage]();
+}
 
 // ════════════════════════════════
 // AUTH
@@ -1008,12 +1105,7 @@ function startApp(){
   sessionStorage.setItem('gs_session', currentUser.id);
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
-  document.getElementById('top-name').textContent=currentUser.name;
-  const av=document.getElementById('top-avatar');
-  av.textContent=initials(currentUser.name);
-  av.style.background=currentUser.color;
-  document.getElementById('top-admin-badge').style.display=currentUser.isAdmin?'inline':'none';
-  document.getElementById('admin-tab').style.display=currentUser.isAdmin?'inline-block':'none';
+  syncTopbar();
   seedPeriodSelects();
   goPage('dashboard');
 }
@@ -1022,6 +1114,7 @@ function startApp(){
 // PAGE ROUTING
 // ════════════════════════════════
 function goPage(name){
+  activePage=name;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
@@ -1622,7 +1715,6 @@ function doResetBuddy(){
   saveBuddyPairs(null);
   saveBuddyParticipants([]);
   buddySelected = {};
-  localStorage.removeItem('gs_buddyPairs');
   renderBuddy();
 }
 
@@ -1648,7 +1740,8 @@ function renderBuddyPairsTable(pairs){
 // ════════════════════════════════
 // INIT
 // ════════════════════════════════
-window.addEventListener('load',()=>{
+window.addEventListener('load',async ()=>{
+  await initializeDataStore();
   // Check remember-me (localStorage) first — persists across browser restarts
   const remembered=localStorage.getItem('gs_remember');
   if(remembered){
@@ -1667,6 +1760,38 @@ window.addEventListener('load',()=>{
     document.getElementById('login-username').value=savedUsername;
     document.getElementById('remember-me').checked=true;
   }
+});
+
+Object.assign(window,{
+  toggleForm,
+  doLogin,
+  doRegister,
+  doLogout,
+  goPage,
+  openTTModal,
+  closeTTModal,
+  addTTEntry,
+  delTT,
+  showApptForm,
+  addAppointment,
+  delAppt,
+  showAsgnForm,
+  addAssignment,
+  filterAsgn,
+  toggleDone,
+  delAsgn,
+  regenCode,
+  removeUser,
+  makeAdmin,
+  changeGroupSize,
+  randSelectAll,
+  doRandom,
+  clearRandHistory,
+  toggleRandMember,
+  buddySelectAll,
+  toggleBuddyMember,
+  doShuffleBuddy,
+  doResetBuddy
 });
 
 
