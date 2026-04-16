@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GroupSync — ตารางกลุ่ม</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #151820;
+    --surface2: #1c2030;
+    --border: #2a2f3e;
+    --accent: #5b8def;
+    --accent2: #e05b8d;
+    --accent3: #5bde9e;
+    --accent4: #f0c46a;
+    --text: #e8eaf2;
+    --text2: #8b90a7;
+    --text3: #555b72;
+    --danger: #e05b5b;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Sarabun', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius:3px; }
+
+  /* ── LOGIN ── */
+  #login-screen {
+    display:flex; align-items:center; justify-content:center;
+    min-height:100vh;
+    background: radial-gradient(ellipse at 30% 20%, #1a2040 0%, var(--bg) 60%);
+  }
+  .login-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 380px;
+    box-shadow: 0 32px 80px rgba(0,0,0,.6);
+    animation: fadeUp .5s ease;
+  }
+  .login-logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 6px;
+    letter-spacing: -1px;
+  }
+  .login-logo span { color: var(--accent2); }
+  .login-sub { color: var(--text2); font-size:14px; margin-bottom:36px; }
+  .field-group { margin-bottom:18px; }
+  .field-group label { display:block; font-size:13px; color:var(--text2); margin-bottom:7px; }
+  .field-group input, .field-group select {
+    width:100%; padding:12px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'Sarabun', sans-serif;
+    font-size:15px;
+    outline:none; transition:.2s;
+  }
+  .field-group input:focus, .field-group select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(91,141,239,.15);
+  }
+  .field-group select option { background: var(--surface2); }
+  .btn-primary {
+    width:100%; padding:13px;
+    background: var(--accent);
+    color:#fff; border:none; border-radius: var(--radius-sm);
+    font-family:'Sarabun',sans-serif; font-size:16px; font-weight:600;
+    cursor:pointer; transition:.2s; margin-top:8px;
+  }
+  .btn-primary:hover { background:#7aa4f5; transform:translateY(-1px); }
+  .btn-primary:active { transform:translateY(0); }
+  .login-switch { text-align:center; margin-top:18px; font-size:13px; color:var(--text2); }
+  .login-switch a { color:var(--accent); cursor:pointer; text-decoration:none; }
+  .login-switch a:hover { text-decoration:underline; }
+  .err-msg { color:var(--danger); font-size:13px; margin-top:10px; display:none; }
+
+  /* ── APP LAYOUT ── */
+  #app { display:none; min-height:100vh; }
+  .topbar {
+    height:60px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position:sticky; top:0; z-index:100;
+  }
+  .topbar-logo { font-family:'Space Mono',monospace; font-size:18px; font-weight:700; color:var(--accent); }
+  .topbar-logo span { color:var(--accent2); }
+  .topbar-right { display:flex; align-items:center; gap:16px; }
+  .user-chip {
+    display:flex; align-items:center; gap:8px;
+    background: var(--surface2); border:1px solid var(--border);
+    border-radius:999px; padding:6px 14px 6px 8px; cursor:pointer;
+  }
+  .user-avatar {
+    width:28px; height:28px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; color:#fff;
+  }
+  .user-name { font-size:14px; font-weight:500; }
+  .btn-logout {
+    background:transparent; border:1px solid var(--border);
+    color:var(--text2); border-radius:var(--radius-sm);
+    padding:7px 14px; font-family:'Sarabun',sans-serif;
+    font-size:13px; cursor:pointer; transition:.2s;
+  }
+  .btn-logout:hover { border-color:var(--danger); color:var(--danger); }
+
+  /* ── NAV TABS ── */
+  .nav-tabs {
+    display:flex; gap:4px;
+    padding:12px 28px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    overflow-x:auto;
+  }
+  .nav-tab {
+    padding:9px 20px;
+    background:transparent; border:none;
+    color:var(--text2); font-family:'Sarabun',sans-serif;
+    font-size:14px; font-weight:500; cursor:pointer;
+    border-bottom:2px solid transparent;
+    transition:.2s; white-space:nowrap;
+  }
+  .nav-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .nav-tab:hover:not(.active) { color:var(--text); }
+
+  /* ── MAIN CONTENT ── */
+  .content { padding:28px; max-width:1200px; margin:0 auto; }
+  .page { display:none; animation: fadeUp .3s ease; }
+  .page.active { display:block; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border:1px solid var(--border);
+    border-radius: var(--radius);
+    padding:24px;
+  }
+  .card-title {
+    font-size:16px; font-weight:600; color:var(--text);
+    margin-bottom:18px; display:flex; align-items:center; gap:8px;
+  }
+  .card-title .icon { font-size:18px; }
+
+  /* ── DASHBOARD ── */
+  .dash-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media(max-width:700px){ .dash-grid { grid-template-columns:1fr; } }
+  .stat-row { display:flex; gap:14px; margin-bottom:20px; flex-wrap:wrap; }
+  .stat-chip {
+    flex:1; min-width:120px;
+    background: var(--surface2); border:1px solid var(--border);
+    border-radius:var(--radius-sm); padding:16px 18px;
+  }
+  .stat-chip .num { font-family:'Space Mono',monospace; font-size:26px; font-weight:700; }
+  .stat-chip .lbl { font-size:12px; color:var(--text2); margin-top:3px; }
+
+  /* ── TODAY EVENTS ── */
+  .event-list { display:flex; flex-direction:column; gap:10px; }
+  .event-item {
+    display:flex; align-items:center; gap:12px;
+    background: var(--surface2); border:1px solid var(--border);
+    border-radius:var(--radius-sm); padding:12px 16px;
+    transition:.15s;
+  }
+  .event-item:hover { border-color: var(--accent); }
+  .event-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .event-time { font-family:'Space Mono',monospace; font-size:12px; color:var(--text2); min-width:80px; }
+  .event-title { font-size:14px; font-weight:500; }
+  .event-sub { font-size:12px; color:var(--text2); }
+
+  /* ── FREE SLOTS ── */
+  .free-grid {
+    display:grid;
+    grid-template-columns: 80px repeat(5,1fr);
+    gap:3px;
+    font-size:12px;
+  }
+  .free-grid .gh { background:var(--surface2); padding:8px 6px; text-align:center; border-radius:4px; font-weight:600; color:var(--text2); }
+  .free-grid .gt { background:var(--surface2); padding:8px 6px; text-align:center; border-radius:4px; color:var(--text2); font-family:'Space Mono',monospace; font-size:11px; }
+  .slot-cell {
+    padding:8px 4px; text-align:center; border-radius:4px;
+    font-size:11px; cursor:default;
+  }
+  .slot-free { background:rgba(91,222,158,.15); color:var(--accent3); font-weight:600; }
+  .slot-busy { background:rgba(224,91,141,.08); color:var(--text3); }
+  .slot-all-free { background:rgba(91,222,158,.3); color:#3dbe7e; font-weight:700; }
+
+  /* ── TIMETABLE ── */
+  .timetable-wrap { overflow-x:auto; }
+  .timetable {
+    display:grid;
+    grid-template-columns: 90px repeat(5,1fr);
+    gap:3px; min-width:520px;
+  }
+  .tt-header {
+    padding:10px 8px; text-align:center;
+    background:var(--surface2); border-radius:4px;
+    font-size:13px; font-weight:600; color:var(--text2);
+  }
+  .tt-time {
+    padding:10px 8px; text-align:right;
+    background:var(--surface2); border-radius:4px;
+    font-family:'Space Mono',monospace; font-size:11px; color:var(--text3);
+  }
+  .tt-cell {
+    padding:6px; border-radius:4px;
+    background:var(--surface2); min-height:42px;
+    font-size:12px; display:flex; flex-direction:column; gap:2px;
+  }
+  .tt-block {
+    background: var(--accent); color:#fff;
+    border-radius:4px; padding:4px 7px;
+    font-size:11px; font-weight:500; line-height:1.4;
+  }
+
+  /* ── FORM ELEMENTS ── */
+  .form-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+  .form-group { flex:1; min-width:160px; }
+  .form-group label { display:block; font-size:12px; color:var(--text2); margin-bottom:6px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width:100%; padding:10px 12px;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:var(--radius-sm); color:var(--text);
+    font-family:'Sarabun',sans-serif; font-size:14px; outline:none; transition:.2s;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    border-color:var(--accent); box-shadow:0 0 0 3px rgba(91,141,239,.12);
+  }
+  .form-group textarea { resize:vertical; min-height:70px; }
+  .btn-add {
+    padding:10px 20px; background:var(--accent);
+    color:#fff; border:none; border-radius:var(--radius-sm);
+    font-family:'Sarabun',sans-serif; font-size:14px; font-weight:600;
+    cursor:pointer; transition:.2s;
+  }
+  .btn-add:hover { background:#7aa4f5; }
+  .btn-del {
+    background:transparent; border:none;
+    color:var(--text3); cursor:pointer; font-size:16px;
+    padding:4px 8px; border-radius:4px; transition:.15s;
+  }
+  .btn-del:hover { color:var(--danger); background:rgba(224,91,91,.1); }
+
+  /* ── ASSIGNMENT LIST ── */
+  .asgn-list { display:flex; flex-direction:column; gap:10px; }
+  .asgn-item {
+    display:flex; align-items:center; gap:14px;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:var(--radius-sm); padding:14px 16px; transition:.15s;
+  }
+  .asgn-item:hover { border-color:var(--accent2); }
+  .asgn-check { width:18px; height:18px; border-radius:4px; cursor:pointer; accent-color:var(--accent3); flex-shrink:0; }
+  .asgn-body { flex:1; }
+  .asgn-name { font-size:14px; font-weight:500; }
+  .asgn-name.done { text-decoration:line-through; color:var(--text3); }
+  .asgn-meta { font-size:12px; color:var(--text2); margin-top:3px; }
+  .badge {
+    font-size:11px; padding:3px 10px; border-radius:999px;
+    font-weight:600; flex-shrink:0;
+  }
+  .badge-red { background:rgba(224,91,91,.15); color:#e08080; }
+  .badge-yellow { background:rgba(240,196,106,.15); color:var(--accent4); }
+  .badge-green { background:rgba(91,222,158,.15); color:var(--accent3); }
+  .badge-blue { background:rgba(91,141,239,.15); color:var(--accent); }
+
+  /* ── MEMBERS ── */
+  .member-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
+  .member-card {
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:var(--radius-sm); padding:18px;
+    display:flex; align-items:center; gap:14px;
+  }
+  .member-avatar {
+    width:40px; height:40px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:700; color:#fff; flex-shrink:0;
+  }
+  .member-name { font-size:14px; font-weight:600; }
+  .member-role { font-size:12px; color:var(--text2); margin-top:2px; }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:18px; flex-wrap:wrap; gap:10px;
+  }
+  .section-title { font-size:20px; font-weight:700; }
+
+  /* ── EMPTY STATE ── */
+  .empty-state { text-align:center; padding:48px 20px; color:var(--text3); font-size:14px; }
+  .empty-state .big { font-size:36px; margin-bottom:10px; }
+
+  /* ── DIVIDER ── */
+  .divider { border:none; border-top:1px solid var(--border); margin:20px 0; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(14px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  .tag-free {
+    display:inline-block; background:rgba(91,222,158,.15);
+    color:var(--accent3); border-radius:999px; font-size:11px;
+    padding:2px 9px; font-weight:600;
+  }
+  .tag-busy {
+    display:inline-block; background:rgba(224,91,141,.1);
+    color:#e08a9e; border-radius:999px; font-size:11px;
+    padding:2px 9px; font-weight:600;
+  }
+
+  /* ── TOOLTIP ── */
+  [data-tip] { position:relative; }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
+    background:#222; color:#fff; border-radius:5px; padding:4px 8px;
+    font-size:11px; white-space:nowrap; pointer-events:none; z-index:200;
+  }
+
+  .notice { font-size:12px; color:var(--text3); margin-top:10px; }
+
+  /* ── RANDOM ── */
+  .rand-stepper {
+    width:36px;height:36px;border-radius:50%;
+    background:var(--surface2);border:1px solid var(--border);
+    color:var(--text);font-size:20px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:.15s;
+  }
+  .rand-stepper:hover { border-color:var(--accent);color:var(--accent); }
+  .rand-member-row {
+    display:flex;align-items:center;gap:10px;
+    background:var(--surface2);border:1px solid var(--border);
+    border-radius:var(--radius-sm);padding:10px 14px;cursor:pointer;transition:.15s;
+  }
+  .rand-member-row:hover { border-color:var(--accent); }
+  .rand-member-row.selected { border-color:var(--accent3);background:rgba(91,222,158,.07); }
+  .rand-cb { width:16px;height:16px;accent-color:var(--accent3);cursor:pointer;flex-shrink:0; }
+  .rand-group-box {
+    background:var(--surface2);border:1px solid var(--border);
+    border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:10px;
+    animation: fadeUp .35s ease;
+  }
+  .rand-group-label {
+    font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text3);
+    text-transform:uppercase;margin-bottom:10px;
+  }
+  .rand-name-chip {
+    display:inline-flex;align-items:center;gap:6px;
+    border-radius:999px;padding:5px 12px;margin:3px;
+    font-size:13px;font-weight:600;color:#fff;
+  }
+  .rand-chip-avatar {
+    width:20px;height:20px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:9px;font-weight:700;background:rgba(255,255,255,.25);
+  }
+  .rand-leftover {
+    background:rgba(240,196,106,.1);border:1px dashed rgba(240,196,106,.3);
+    border-radius:var(--radius-sm);padding:12px 16px;margin-top:6px;
+    font-size:13px;color:var(--accent4);
+  }
+  @keyframes rollIn {
+    0% { opacity:0; transform:scale(.85) rotateY(-20deg); }
+    100% { opacity:1; transform:scale(1) rotateY(0); }
+  }
+  .rand-group-box { animation: rollIn .4s ease; }
+  #rand-btn:hover { transform:scale(1.02); box-shadow:0 12px 32px rgba(91,141,239,.45) !important; }
+  #rand-btn:active { transform:scale(.97); }
+  .rand-hist-item {
+    font-size:12px;color:var(--text2);padding:8px 0;
+    border-bottom:1px solid var(--border);display:flex;justify-content:space-between;
+  }
+  .rand-hist-item:last-child { border-bottom:none; }
+  @media(max-width:700px){ #random-layout { grid-template-columns:1fr !important; } }
+
+  /* Admin badge */
+  .admin-badge {
+    font-size:10px; background:rgba(240,196,106,.15); color:var(--accent4);
+    border-radius:999px; padding:2px 8px; font-weight:600;
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     LOGIN / REGISTER SCREEN
+════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Group<span>Sync</span></div>
+    <div class="login-sub">ระบบตารางเวลากลุ่ม</div>
+
+    <!-- LOGIN FORM -->
+    <div id="form-login">
+      <div class="field-group">
+        <label>ชื่อผู้ใช้</label>
+        <input type="text" id="login-username" placeholder="กรอกชื่อผู้ใช้">
+      </div>
+      <div class="field-group">
+        <label>รหัสผ่าน</label>
+        <input type="password" id="login-password" placeholder="กรอกรหัสผ่าน">
+      </div>
+      <div class="err-msg" id="login-err">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</div>
+      <button class="btn-primary" onclick="doLogin()">เข้าสู่ระบบ</button>
+      <div class="login-switch">ยังไม่มีบัญชี? <a onclick="toggleForm('register')">สมัครสมาชิก</a></div>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div id="form-register" style="display:none">
+      <div class="field-group">
+        <label>ชื่อ-นามสกุล</label>
+        <input type="text" id="reg-name" placeholder="เช่น สมชาย ใจดี">
+      </div>
+      <div class="field-group">
+        <label>ชื่อผู้ใช้</label>
+        <input type="text" id="reg-username" placeholder="ไม่มีช่องว่าง">
+      </div>
+      <div class="field-group">
+        <label>รหัสผ่าน</label>
+        <input type="password" id="reg-password" placeholder="อย่างน้อย 4 ตัวอักษร">
+      </div>
+      <div class="field-group">
+        <label>รหัสเข้าร่วมกลุ่ม</label>
+        <input type="text" id="reg-groupcode" placeholder="ขอรหัสจากแอดมิน">
+      </div>
+      <div class="err-msg" id="reg-err">กรุณากรอกข้อมูลให้ครบ</div>
+      <button class="btn-primary" onclick="doRegister()">สมัครสมาชิก</button>
+      <div class="login-switch">มีบัญชีแล้ว? <a onclick="toggleForm('login')">เข้าสู่ระบบ</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     APP
+════════════════════════════════════════════ -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">Group<span>Sync</span></div>
+    <div class="topbar-right">
+      <div class="user-chip" onclick="goPage('members')">
+        <div class="user-avatar" id="top-avatar"></div>
+        <span class="user-name" id="top-name"></span>
+        <span id="top-admin-badge" style="display:none" class="admin-badge">Admin</span>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="goPage('dashboard')">📊 ภาพรวม</button>
+    <button class="nav-tab" onclick="goPage('freetimes')">🟢 คาบว่างตรงกัน</button>
+    <button class="nav-tab" onclick="goPage('timetable')">📅 ตารางเรียน</button>
+    <button class="nav-tab" onclick="goPage('appointments')">📌 นัดหมาย</button>
+    <button class="nav-tab" onclick="goPage('assignments')">📝 งานที่ต้องส่ง</button>
+    <button class="nav-tab" onclick="goPage('members')">👥 สมาชิก</button>
+    <button class="nav-tab" onclick="goPage('random')">🎲 สุ่มกลุ่ม</button>
+    <button class="nav-tab" id="admin-tab" onclick="goPage('admin')" style="display:none">⚙️ Admin</button>
+  </div>
+
+  <div class="content">
+
+    <!-- ── DASHBOARD ── -->
+    <div class="page active" id="page-dashboard">
+      <div class="section-header">
+        <div class="section-title">สวัสดี, <span id="dash-name">—</span> 👋</div>
+        <div style="font-size:13px;color:var(--text2)" id="dash-date"></div>
+      </div>
+      <div class="stat-row" id="stat-row"></div>
+      <div class="dash-grid">
+        <div class="card">
+          <div class="card-title"><span class="icon">📌</span> นัดหมายวันนี้</div>
+          <div class="event-list" id="today-appointments">
+            <div class="empty-state"><div class="big">📭</div>ไม่มีนัดวันนี้</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">⏰</span> งานที่ใกล้หมดกำหนด</div>
+          <div class="event-list" id="due-soon">
+            <div class="empty-state"><div class="big">✅</div>ไม่มีงานเร่งด่วน</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FREE TIMES ── -->
+    <div class="page" id="page-freetimes">
+      <div class="section-header">
+        <div class="section-title">🟢 คาบว่างที่ตรงกัน</div>
+      </div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title"><span class="icon">ℹ️</span> วิธีอ่าน</div>
+        <p style="font-size:13px;color:var(--text2)">
+          <span class="tag-free">ว่างทุกคน</span> = ทุกคนในกลุ่มว่างช่วงนี้ &nbsp;|&nbsp;
+          <span class="tag-free">ว่าง N คน</span> = บางคนว่าง &nbsp;|&nbsp;
+          <span class="tag-busy">ไม่ว่าง</span> = ไม่มีใครว่างเลย
+        </p>
+      </div>
+      <div class="card">
+        <div class="timetable-wrap">
+          <div class="free-grid" id="free-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TIMETABLE ── -->
+    <div class="page" id="page-timetable">
+      <div class="section-header">
+        <div class="section-title">📅 ตารางเรียนของฉัน</div>
+        <button class="btn-add" onclick="openTTModal()">+ เพิ่มคาบเรียน</button>
+      </div>
+      <div class="card">
+        <div class="timetable-wrap">
+          <div class="timetable" id="my-timetable"></div>
+        </div>
+      </div>
+      <!-- ADD CLASS MODAL -->
+      <div id="tt-modal" style="display:none;margin-top:20px">
+        <div class="card">
+          <div class="card-title">เพิ่ม / แก้ไขคาบเรียน</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>ชื่อวิชา</label>
+              <input type="text" id="tt-subject" placeholder="เช่น Calculus">
+            </div>
+            <div class="form-group">
+              <label>วัน</label>
+              <select id="tt-day">
+                <option value="0">จันทร์</option><option value="1">อังคาร</option>
+                <option value="2">พุธ</option><option value="3">พฤหัสบดี</option>
+                <option value="4">ศุกร์</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>คาบเริ่ม</label>
+              <select id="tt-start"></select>
+            </div>
+            <div class="form-group">
+              <label>คาบสิ้นสุด</label>
+              <select id="tt-end"></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <button class="btn-add" onclick="addTTEntry()">บันทึก</button>
+            <button class="btn-logout" style="padding:10px 20px" onclick="closeTTModal()">ยกเลิก</button>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:20px">
+        <div class="card-title" style="margin-bottom:14px">รายการคาบเรียน</div>
+        <div id="tt-list"></div>
+      </div>
+    </div>
+
+    <!-- ── APPOINTMENTS ── -->
+    <div class="page" id="page-appointments">
+      <div class="section-header">
+        <div class="section-title">📌 นัดหมายกลุ่ม</div>
+        <button class="btn-add" onclick="showApptForm()">+ เพิ่มนัด</button>
+      </div>
+      <div id="appt-form" style="display:none;margin-bottom:20px">
+        <div class="card">
+          <div class="card-title">เพิ่มนัดหมาย</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>หัวข้อนัด</label>
+              <input type="text" id="appt-title" placeholder="เช่น ติว Midterm">
+            </div>
+            <div class="form-group">
+              <label>วันที่</label>
+              <input type="date" id="appt-date">
+            </div>
+            <div class="form-group">
+              <label>เวลา</label>
+              <input type="time" id="appt-time">
+            </div>
+            <div class="form-group">
+              <label>สถานที่</label>
+              <input type="text" id="appt-location" placeholder="เช่น ห้อง A101">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>รายละเอียด</label>
+              <textarea id="appt-note" placeholder="เพิ่มเติม..."></textarea>
+            </div>
+          </div>
+          <button class="btn-add" onclick="addAppointment()">บันทึกนัด</button>
+        </div>
+      </div>
+      <div class="event-list" id="appt-list">
+        <div class="empty-state"><div class="big">📭</div>ยังไม่มีนัดหมาย</div>
+      </div>
+    </div>
+
+    <!-- ── ASSIGNMENTS ── -->
+    <div class="page" id="page-assignments">
+      <div class="section-header">
+        <div class="section-title">📝 งานที่ต้องส่ง</div>
+        <button class="btn-add" onclick="showAsgnForm()">+ เพิ่มงาน</button>
+      </div>
+      <div id="asgn-form" style="display:none;margin-bottom:20px">
+        <div class="card">
+          <div class="card-title">เพิ่มงานที่ต้องส่ง</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>ชื่องาน</label>
+              <input type="text" id="asgn-title" placeholder="เช่น HW#3 Calculus">
+            </div>
+            <div class="form-group">
+              <label>วิชา</label>
+              <input type="text" id="asgn-subject" placeholder="เช่น Calculus">
+            </div>
+            <div class="form-group">
+              <label>กำหนดส่ง</label>
+              <input type="date" id="asgn-due">
+            </div>
+            <div class="form-group">
+              <label>ความสำคัญ</label>
+              <select id="asgn-priority">
+                <option value="high">🔴 สูง (เร่งด่วน)</option>
+                <option value="medium" selected>🟡 กลาง</option>
+                <option value="low">🟢 ต่ำ</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>รายละเอียด</label>
+              <textarea id="asgn-note" placeholder="เพิ่มเติม..."></textarea>
+            </div>
+          </div>
+          <button class="btn-add" onclick="addAssignment()">บันทึกงาน</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="nav-tab active" id="asgn-tab-pending" onclick="filterAsgn('pending')">รอส่ง</button>
+        <button class="nav-tab" id="asgn-tab-done" onclick="filterAsgn('done')">ส่งแล้ว</button>
+      </div>
+      <div class="asgn-list" id="asgn-list"></div>
+    </div>
+
+    <!-- ── MEMBERS ── -->
+    <div class="page" id="page-members">
+      <div class="section-header">
+        <div class="section-title">👥 สมาชิกกลุ่ม</div>
+      </div>
+      <div class="member-grid" id="member-grid"></div>
+    </div>
+
+    <!-- ── ADMIN ── -->
+    <div class="page" id="page-admin">
+      <div class="section-header">
+        <div class="section-title">⚙️ Admin Panel</div>
+      </div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title">🔑 รหัสเข้าร่วมกลุ่ม</div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="font-family:'Space Mono',monospace;font-size:22px;letter-spacing:3px;color:var(--accent4)" id="group-code-display">—</div>
+          <button class="btn-add" onclick="regenCode()" style="background:var(--accent4);color:#1a1408">สร้างรหัสใหม่</button>
+        </div>
+        <div class="notice">แชร์รหัสนี้ให้สมาชิกใหม่เพื่อสมัครเข้ากลุ่ม</div>
+      </div>
+      <div class="card">
+        <div class="card-title">👤 จัดการสมาชิก</div>
+        <div id="admin-members"></div>
+      </div>
+    </div>
+
+
+    <!-- ── RANDOM ── -->
+    <div class="page" id="page-random">
+      <div class="section-header">
+        <div class="section-title">🎲 สุ่มกลุ่ม</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px" id="random-layout">
+
+        <!-- LEFT: settings -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="card-title"><span class="icon">⚙️</span> ตั้งค่าการสุ่ม</div>
+            <div class="form-group" style="margin-bottom:14px">
+              <label>จำนวนคนต่อกลุ่ม</label>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+                <button class="rand-stepper" onclick="changeGroupSize(-1)">−</button>
+                <div style="font-family:Space Mono,monospace;font-size:28px;font-weight:700;color:var(--accent);min-width:40px;text-align:center" id="rand-size-display">2</div>
+                <button class="rand-stepper" onclick="changeGroupSize(1)">+</button>
+                <span style="font-size:13px;color:var(--text2)">คน / กลุ่ม</span>
+              </div>
+            </div>
+            <div style="font-size:12px;color:var(--text3);margin-top:4px" id="rand-group-count"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="icon">👥</span> เลือกผู้เข้าร่วมสุ่ม</div>
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+              <button class="btn-add" style="padding:7px 14px;font-size:12px" onclick="randSelectAll(true)">เลือกทั้งหมด</button>
+              <button class="btn-logout" style="padding:7px 14px;font-size:12px" onclick="randSelectAll(false)">ยกเลิกทั้งหมด</button>
+            </div>
+            <div id="rand-member-list" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+
+        <!-- RIGHT: result -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card" style="text-align:center">
+            <button id="rand-btn" onclick="doRandom()" style="width:100%;padding:18px;font-size:20px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:var(--radius);cursor:pointer;transition:.2s;font-family:Sarabun,sans-serif;box-shadow:0 8px 24px rgba(91,141,239,.3);">🎲 สุ่มเลย!</button>
+          </div>
+
+          <div class="card" id="rand-result-card" style="display:none">
+            <div class="card-title"><span class="icon">✨</span> ผลการสุ่ม</div>
+            <div id="rand-result"></div>
+          </div>
+
+          <div class="card" id="rand-history-card" style="display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+              <div class="card-title" style="margin-bottom:0"><span class="icon">🕐</span> ประวัติการสุ่ม</div>
+              <button class="btn-del" onclick="clearRandHistory()" style="font-size:13px">ล้าง</button>
+            </div>
+            <div id="rand-history"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<script>
+// ════════════════════════════════
+// CONSTANTS & HELPERS
+// ════════════════════════════════
+const DAYS = ['จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์'];
+const PERIODS = [
+  '08:00','09:00','10:00','11:00','12:00',
+  '13:00','14:00','15:00','16:00','17:00','18:00'
+];
+const COLORS = [
+  '#5b8def','#e05b8d','#5bde9e','#f0c46a','#c45bde',
+  '#de8a5b','#5bdede','#de5b5b','#8de05b','#de5bb8'
+];
+
+function save(key,val){ localStorage.setItem('gs_'+key, JSON.stringify(val)); }
+function load(key,def=null){ const v=localStorage.getItem('gs_'+key); return v?JSON.parse(v):def; }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function daysUntil(d){ return Math.ceil((new Date(d)-new Date(today()))/(1000*86400)); }
+function colorFor(username){
+  let h=0; for(const c of username) h=((h<<5)-h+c.charCodeAt(0))|0;
+  return COLORS[Math.abs(h)%COLORS.length];
+}
+function initials(name){ return name.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase(); }
+
+// Seed period selects
+function seedPeriodSelects(){
+  ['tt-start','tt-end'].forEach(id=>{
+    const sel=document.getElementById(id); sel.innerHTML='';
+    PERIODS.forEach((p,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=p; sel.appendChild(o); });
+  });
+  document.getElementById('tt-end').value=1;
+}
+
+// ════════════════════════════════
+// DATA SCHEMA
+// ════════════════════════════════
+// users: [{id,name,username,password,isAdmin,color}]
+// timetable_<uid>: [{id,subject,day,start,end}]  (0-indexed periods)
+// appointments: [{id,title,date,time,location,note,createdBy}]
+// assignments: [{id,title,subject,due,priority,note,doneBy:[uid]}]
+// groupCode: string
+
+function getUsers(){ return load('users',[]); }
+function saveUsers(u){ save('users',u); }
+function getAppts(){ return load('appointments',[]); }
+function saveAppts(a){ save('appointments',a); }
+function getAsgns(){ return load('assignments',[]); }
+function saveAsgns(a){ save('assignments',a); }
+function getGroupCode(){ return load('groupCode', genCode()); }
+function genCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<6;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; }
+function regenCode(){ const c=genCode(); save('groupCode',c); renderAdmin(); }
+
+let currentUser=null;
+
+// ════════════════════════════════
+// AUTH
+// ════════════════════════════════
+function toggleForm(t){
+  document.getElementById('form-login').style.display=t==='login'?'block':'none';
+  document.getElementById('form-register').style.display=t==='register'?'block':'none';
+  document.getElementById('login-err').style.display='none';
+  document.getElementById('reg-err').style.display='none';
+}
+
+function doLogin(){
+  const u=document.getElementById('login-username').value.trim();
+  const p=document.getElementById('login-password').value;
+  const users=getUsers();
+  // seed default admin if empty
+  if(users.length===0){ seedDefaultAdmin(); return doLogin(); }
+  const found=users.find(x=>x.username===u && x.password===p);
+  if(!found){ document.getElementById('login-err').style.display='block'; return; }
+  currentUser=found;
+  startApp();
+}
+
+function doRegister(){
+  const name=document.getElementById('reg-name').value.trim();
+  const uname=document.getElementById('reg-username').value.trim();
+  const pass=document.getElementById('reg-password').value;
+  const code=document.getElementById('reg-groupcode').value.trim().toUpperCase();
+  const errEl=document.getElementById('reg-err');
+  if(!name||!uname||!pass||pass.length<4){ errEl.textContent='กรอกข้อมูลให้ครบ และรหัสผ่านอย่างน้อย 4 ตัว'; errEl.style.display='block'; return; }
+  const gc=getGroupCode();
+  if(code!==gc){ errEl.textContent='รหัสเข้าร่วมกลุ่มไม่ถูกต้อง'; errEl.style.display='block'; return; }
+  const users=getUsers();
+  if(users.find(x=>x.username===uname)){ errEl.textContent='ชื่อผู้ใช้นี้มีอยู่แล้ว'; errEl.style.display='block'; return; }
+  const newUser={id:uid(),name,username:uname,password:pass,isAdmin:false,color:colorFor(uname)};
+  users.push(newUser); saveUsers(users);
+  currentUser=newUser; startApp();
+}
+
+function seedDefaultAdmin(){
+  const code=genCode(); save('groupCode',code);
+  const admin={id:uid(),name:'Admin',username:'admin',password:'admin1234',isAdmin:true,color:COLORS[0]};
+  saveUsers([admin]);
+  alert(`🎉 ระบบสร้างบัญชี Admin แล้ว!\nUsername: admin\nPassword: admin1234\nรหัสกลุ่ม: ${code}\n\n(กรุณาเปลี่ยนรหัสผ่านทันที)`);
+}
+
+function doLogout(){
+  sessionStorage.removeItem('gs_session');
+  currentUser=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  toggleForm('login');
+}
+
+function startApp(){
+  sessionStorage.setItem('gs_session', currentUser.id);
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('top-name').textContent=currentUser.name;
+  const av=document.getElementById('top-avatar');
+  av.textContent=initials(currentUser.name);
+  av.style.background=currentUser.color;
+  document.getElementById('top-admin-badge').style.display=currentUser.isAdmin?'inline':'none';
+  document.getElementById('admin-tab').style.display=currentUser.isAdmin?'inline-block':'none';
+  seedPeriodSelects();
+  goPage('dashboard');
+}
+
+// ════════════════════════════════
+// PAGE ROUTING
+// ════════════════════════════════
+function goPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  // highlight tab
+  document.querySelectorAll('.nav-tab').forEach(t=>{
+    if(t.getAttribute('onclick')===`goPage('${name}')`) t.classList.add('active');
+  });
+  // render
+  const renders={dashboard:renderDashboard,freetimes:renderFreeTimes,timetable:renderTimetable,
+    appointments:renderAppointments,assignments:()=>renderAssignments('pending'),members:renderMembers,admin:renderAdmin,random:renderRandom};
+  if(renders[name]) renders[name]();
+}
+
+// ════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════
+function renderDashboard(){
+  document.getElementById('dash-name').textContent=currentUser.name.split(' ')[0];
+  const now=new Date();
+  document.getElementById('dash-date').textContent=now.toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const users=getUsers(); const appts=getAppts(); const asgns=getAsgns();
+  // stats
+  const todayApts=appts.filter(a=>a.date===today());
+  const pendingAsgns=asgns.filter(a=>!a.doneBy?.includes(currentUser.id));
+  document.getElementById('stat-row').innerHTML=`
+    <div class="stat-chip"><div class="num" style="color:var(--accent)">${users.length}</div><div class="lbl">สมาชิกกลุ่ม</div></div>
+    <div class="stat-chip"><div class="num" style="color:var(--accent2)">${todayApts.length}</div><div class="lbl">นัดวันนี้</div></div>
+    <div class="stat-chip"><div class="num" style="color:var(--accent4)">${pendingAsgns.length}</div><div class="lbl">งานค้างส่ง</div></div>
+    <div class="stat-chip"><div class="num" style="color:var(--accent3)">${appts.length}</div><div class="lbl">นัดทั้งหมด</div></div>
+  `;
+  // today appts
+  const apptEl=document.getElementById('today-appointments');
+  if(todayApts.length===0){
+    apptEl.innerHTML='<div class="empty-state"><div class="big">📭</div>ไม่มีนัดวันนี้</div>';
+  } else {
+    apptEl.innerHTML=todayApts.sort((a,b)=>a.time.localeCompare(b.time)).map(a=>`
+      <div class="event-item">
+        <div class="event-dot" style="background:var(--accent2)"></div>
+        <div class="event-time">${a.time||'—'}</div>
+        <div><div class="event-title">${a.title}</div><div class="event-sub">${a.location||''}</div></div>
+      </div>`).join('');
+  }
+  // due soon
+  const dueEl=document.getElementById('due-soon');
+  const urgent=asgns.filter(a=>!a.doneBy?.includes(currentUser.id) && daysUntil(a.due)<=7).sort((a,b)=>new Date(a.due)-new Date(b.due));
+  if(urgent.length===0){
+    dueEl.innerHTML='<div class="empty-state"><div class="big">✅</div>ไม่มีงานเร่งด่วน</div>';
+  } else {
+    dueEl.innerHTML=urgent.map(a=>{
+      const d=daysUntil(a.due);
+      const color=d<=0?'var(--danger)':d<=2?'var(--accent2)':'var(--accent4)';
+      return `<div class="event-item">
+        <div class="event-dot" style="background:${color}"></div>
+        <div class="event-time" style="color:${color}">${d<=0?'หมดแล้ว':d===1?'พรุ่งนี้':d+'วัน'}</div>
+        <div><div class="event-title">${a.title}</div><div class="event-sub">${a.subject}</div></div>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ════════════════════════════════
+// FREE TIMES
+// ════════════════════════════════
+function renderFreeTimes(){
+  const users=getUsers();
+  const totalUsers=users.length;
+  const grid=document.getElementById('free-grid');
+  // Build header
+  let html='<div class="gh">คาบ / วัน</div>'+DAYS.map(d=>`<div class="gh">${d}</div>`).join('');
+  // For each period, calculate free count
+  for(let p=0;p<PERIODS.length-1;p++){
+    html+=`<div class="gt">${PERIODS[p]}</div>`;
+    for(let d=0;d<5;d++){
+      // Count busy users
+      let busy=0;
+      users.forEach(u=>{
+        const tt=load('tt_'+u.id,[]);
+        if(tt.some(e=>e.day===d && e.start<=p && e.end>p)) busy++;
+      });
+      const free=totalUsers-busy;
+      if(free===totalUsers && totalUsers>0){
+        html+=`<div class="slot-cell slot-all-free">ว่างทุกคน</div>`;
+      } else if(free===0 || totalUsers===0){
+        html+=`<div class="slot-cell slot-busy">ไม่ว่าง</div>`;
+      } else {
+        html+=`<div class="slot-cell slot-free">ว่าง ${free}/${totalUsers}</div>`;
+      }
+    }
+  }
+  grid.innerHTML=html;
+}
+
+// ════════════════════════════════
+// TIMETABLE
+// ════════════════════════════════
+function openTTModal(){ document.getElementById('tt-modal').style.display='block'; }
+function closeTTModal(){ document.getElementById('tt-modal').style.display='none'; }
+
+function addTTEntry(){
+  const subject=document.getElementById('tt-subject').value.trim();
+  const day=+document.getElementById('tt-day').value;
+  const start=+document.getElementById('tt-start').value;
+  const end=+document.getElementById('tt-end').value;
+  if(!subject){ alert('กรุณากรอกชื่อวิชา'); return; }
+  if(end<=start){ alert('คาบสิ้นสุดต้องมากกว่าคาบเริ่ม'); return; }
+  const tt=load('tt_'+currentUser.id,[]);
+  tt.push({id:uid(),subject,day,start,end});
+  save('tt_'+currentUser.id,tt);
+  closeTTModal(); renderTimetable();
+}
+
+function renderTimetable(){
+  const tt=load('tt_'+currentUser.id,[]);
+  // Grid
+  const grid=document.getElementById('my-timetable');
+  let html='<div class="tt-header"></div>'+DAYS.map(d=>`<div class="tt-header">${d}</div>`).join('');
+  for(let p=0;p<PERIODS.length-1;p++){
+    html+=`<div class="tt-time">${PERIODS[p]}</div>`;
+    for(let d=0;d<5;d++){
+      const entries=tt.filter(e=>e.day===d && e.start<=p && e.end>p);
+      html+=`<div class="tt-cell">${entries.map(e=>`<div class="tt-block">${e.subject}</div>`).join('')}</div>`;
+    }
+  }
+  grid.innerHTML=html;
+  // List
+  const listEl=document.getElementById('tt-list');
+  if(tt.length===0){ listEl.innerHTML='<div class="empty-state"><div class="big">📚</div>ยังไม่มีคาบเรียน</div>'; return; }
+  listEl.innerHTML=tt.map(e=>`
+    <div class="event-item" style="margin-bottom:8px">
+      <div class="event-dot" style="background:var(--accent)"></div>
+      <div style="flex:1">
+        <div class="event-title">${e.subject}</div>
+        <div class="event-sub">${DAYS[e.day]} · ${PERIODS[e.start]} – ${PERIODS[e.end]}</div>
+      </div>
+      <button class="btn-del" onclick="delTT('${e.id}')">🗑</button>
+    </div>`).join('');
+}
+
+function delTT(id){
+  if(!confirm('ลบคาบเรียนนี้?')) return;
+  let tt=load('tt_'+currentUser.id,[]);
+  tt=tt.filter(e=>e.id!==id); save('tt_'+currentUser.id,tt); renderTimetable();
+}
+
+// ════════════════════════════════
+// APPOINTMENTS
+// ════════════════════════════════
+function showApptForm(){ const f=document.getElementById('appt-form'); f.style.display=f.style.display==='none'?'block':'none'; }
+
+function addAppointment(){
+  const title=document.getElementById('appt-title').value.trim();
+  const date=document.getElementById('appt-date').value;
+  const time=document.getElementById('appt-time').value;
+  const location=document.getElementById('appt-location').value.trim();
+  const note=document.getElementById('appt-note').value.trim();
+  if(!title||!date){ alert('กรอกหัวข้อและวันที่'); return; }
+  const appts=getAppts();
+  appts.push({id:uid(),title,date,time,location,note,createdBy:currentUser.id});
+  saveAppts(appts);
+  document.getElementById('appt-form').style.display='none';
+  ['appt-title','appt-date','appt-time','appt-location','appt-note'].forEach(id=>document.getElementById(id).value='');
+  renderAppointments();
+}
+
+function renderAppointments(){
+  const appts=getAppts().sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  const el=document.getElementById('appt-list');
+  if(appts.length===0){ el.innerHTML='<div class="empty-state"><div class="big">📭</div>ยังไม่มีนัดหมาย</div>'; return; }
+  const users=getUsers();
+  el.innerHTML=appts.map(a=>{
+    const creator=users.find(u=>u.id===a.createdBy);
+    const d=daysUntil(a.date);
+    const badge=d<0?`<span class="badge badge-red">ผ่านไปแล้ว</span>`:
+      d===0?`<span class="badge badge-green">วันนี้</span>`:
+      d===1?`<span class="badge badge-yellow">พรุ่งนี้</span>`:
+      `<span class="badge badge-blue">อีก ${d} วัน</span>`;
+    const canDel=currentUser.isAdmin||a.createdBy===currentUser.id;
+    return `<div class="event-item">
+      <div class="event-dot" style="background:var(--accent2)"></div>
+      <div style="min-width:90px"><div class="event-time" style="color:var(--text)">${a.date}</div><div class="event-time">${a.time||'—'}</div></div>
+      <div style="flex:1">
+        <div class="event-title">${a.title}</div>
+        <div class="event-sub">${a.location?'📍'+a.location+' · ':''}${a.note||''}${creator?' · โดย '+creator.name:''}</div>
+      </div>
+      ${badge}
+      ${canDel?`<button class="btn-del" onclick="delAppt('${a.id}')">🗑</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+function delAppt(id){
+  if(!confirm('ลบนัดนี้?')) return;
+  saveAppts(getAppts().filter(a=>a.id!==id)); renderAppointments();
+}
+
+// ════════════════════════════════
+// ASSIGNMENTS
+// ════════════════════════════════
+let asgnFilter='pending';
+function showAsgnForm(){ const f=document.getElementById('asgn-form'); f.style.display=f.style.display==='none'?'block':'none'; }
+
+function filterAsgn(f){
+  asgnFilter=f;
+  document.getElementById('asgn-tab-pending').classList.toggle('active',f==='pending');
+  document.getElementById('asgn-tab-done').classList.toggle('active',f==='done');
+  renderAssignments(f);
+}
+
+function addAssignment(){
+  const title=document.getElementById('asgn-title').value.trim();
+  const subject=document.getElementById('asgn-subject').value.trim();
+  const due=document.getElementById('asgn-due').value;
+  const priority=document.getElementById('asgn-priority').value;
+  const note=document.getElementById('asgn-note').value.trim();
+  if(!title||!due){ alert('กรอกชื่องานและกำหนดส่ง'); return; }
+  const asgns=getAsgns();
+  asgns.push({id:uid(),title,subject,due,priority,note,doneBy:[]});
+  saveAsgns(asgns);
+  document.getElementById('asgn-form').style.display='none';
+  ['asgn-title','asgn-subject','asgn-due','asgn-note'].forEach(id=>document.getElementById(id).value='');
+  renderAssignments(asgnFilter);
+}
+
+function renderAssignments(filter='pending'){
+  const asgns=getAsgns().sort((a,b)=>new Date(a.due)-new Date(b.due));
+  const el=document.getElementById('asgn-list');
+  const list=filter==='pending'
+    ? asgns.filter(a=>!a.doneBy?.includes(currentUser.id))
+    : asgns.filter(a=>a.doneBy?.includes(currentUser.id));
+  if(list.length===0){ el.innerHTML='<div class="empty-state"><div class="big">🎉</div>ไม่มีรายการในหมวดนี้</div>'; return; }
+  const pMap={high:'badge-red',medium:'badge-yellow',low:'badge-green'};
+  const pLabel={high:'🔴 เร่งด่วน',medium:'🟡 ปานกลาง',low:'🟢 ปกติ'};
+  el.innerHTML=list.map(a=>{
+    const done=a.doneBy?.includes(currentUser.id);
+    const d=daysUntil(a.due);
+    const dStr=d<0?`<span style="color:var(--danger)">เกินกำหนด ${-d} วัน</span>`:
+      d===0?`<span style="color:var(--accent3)">วันนี้วันสุดท้าย</span>`:
+      `ส่ง: ${a.due} (อีก ${d} วัน)`;
+    const canDel=currentUser.isAdmin||true; // anyone can delete for now
+    return `<div class="asgn-item">
+      <input type="checkbox" class="asgn-check" ${done?'checked':''} onchange="toggleDone('${a.id}',this.checked)">
+      <div class="asgn-body">
+        <div class="asgn-name ${done?'done':''}">${a.title}</div>
+        <div class="asgn-meta">${a.subject?'📚 '+a.subject+' · ':''}${dStr}</div>
+        ${a.note?`<div class="asgn-meta" style="margin-top:3px">${a.note}</div>`:''}
+        <div class="asgn-meta" style="margin-top:4px">ทำเสร็จแล้ว: ${a.doneBy?.length||0}/${getUsers().length} คน</div>
+      </div>
+      <span class="badge ${pMap[a.priority]||'badge-blue'}">${pLabel[a.priority]||'—'}</span>
+      <button class="btn-del" onclick="delAsgn('${a.id}')">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleDone(id,checked){
+  const asgns=getAsgns();
+  const a=asgns.find(x=>x.id===id); if(!a) return;
+  if(!a.doneBy) a.doneBy=[];
+  if(checked){ if(!a.doneBy.includes(currentUser.id)) a.doneBy.push(currentUser.id); }
+  else { a.doneBy=a.doneBy.filter(x=>x!==currentUser.id); }
+  saveAsgns(asgns); renderAssignments(asgnFilter);
+}
+
+function delAsgn(id){
+  if(!confirm('ลบงานนี้?')) return;
+  saveAsgns(getAsgns().filter(a=>a.id!==id)); renderAssignments(asgnFilter);
+}
+
+// ════════════════════════════════
+// MEMBERS
+// ════════════════════════════════
+function renderMembers(){
+  const users=getUsers();
+  const el=document.getElementById('member-grid');
+  el.innerHTML=users.map(u=>`
+    <div class="member-card">
+      <div class="member-avatar" style="background:${u.color}">${initials(u.name)}</div>
+      <div>
+        <div class="member-name">${u.name} ${u.isAdmin?'<span class="admin-badge">Admin</span>':''}</div>
+        <div class="member-role">@${u.username}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ════════════════════════════════
+// ADMIN
+// ════════════════════════════════
+function renderAdmin(){
+  if(!currentUser?.isAdmin) return;
+  document.getElementById('group-code-display').textContent=getGroupCode();
+  const users=getUsers();
+  const el=document.getElementById('admin-members');
+  el.innerHTML=users.map(u=>`
+    <div class="event-item" style="margin-bottom:8px">
+      <div class="member-avatar" style="background:${u.color};width:32px;height:32px;font-size:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">${initials(u.name)}</div>
+      <div style="flex:1">
+        <div class="event-title">${u.name} ${u.isAdmin?'<span class="admin-badge">Admin</span>':''}</div>
+        <div class="event-sub">@${u.username}</div>
+      </div>
+      ${!u.isAdmin&&u.id!==currentUser.id?`<button class="btn-del" onclick="removeUser('${u.id}')">ลบ</button>`:''}
+      ${!u.isAdmin&&u.id!==currentUser.id?`<button class="btn-add" style="padding:6px 12px;font-size:12px" onclick="makeAdmin('${u.id}')">ตั้งเป็น Admin</button>`:''}
+    </div>`).join('');
+}
+
+function removeUser(id){
+  if(!confirm('ลบสมาชิกคนนี้?')) return;
+  saveUsers(getUsers().filter(u=>u.id!==id)); renderAdmin(); renderMembers();
+}
+
+function makeAdmin(id){
+  if(!confirm('ตั้งสมาชิกคนนี้เป็น Admin?')) return;
+  const users=getUsers(); const u=users.find(x=>x.id===id); if(u) u.isAdmin=true;
+  saveUsers(users); renderAdmin();
+}
+
+// ════════════════════════════════
+// RANDOM GROUP
+// ════════════════════════════════
+let randGroupSize=2;
+let randSelected={}; // uid -> bool
+
+function renderRandom(){
+  const users=getUsers();
+  // init selected state (default all true)
+  users.forEach(u=>{ if(randSelected[u.id]===undefined) randSelected[u.id]=true; });
+  // member list
+  const el=document.getElementById('rand-member-list');
+  el.innerHTML=users.map(u=>`
+    <div class="rand-member-row ${randSelected[u.id]?'selected':''}" onclick="toggleRandMember('${u.id}')">
+      <input type="checkbox" class="rand-cb" ${randSelected[u.id]?'checked':''} onchange="toggleRandMember('${u.id}')" onclick="event.stopPropagation()">
+      <div class="member-avatar" style="background:${u.color};width:28px;height:28px;font-size:11px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0">${initials(u.name)}</div>
+      <span style="font-size:14px;font-weight:500">${u.name}</span>
+    </div>`).join('');
+  updateRandCount();
+  renderRandHistory();
+}
+
+function toggleRandMember(id){
+  randSelected[id]=!randSelected[id];
+  renderRandom();
+}
+
+function randSelectAll(v){
+  getUsers().forEach(u=>randSelected[u.id]=v);
+  renderRandom();
+}
+
+function changeGroupSize(delta){
+  const selected=getUsers().filter(u=>randSelected[u.id]);
+  const max=Math.max(selected.length,1);
+  randGroupSize=Math.min(Math.max(1,randGroupSize+delta),max);
+  document.getElementById('rand-size-display').textContent=randGroupSize;
+  updateRandCount();
+}
+
+function updateRandCount(){
+  const selected=getUsers().filter(u=>randSelected[u.id]);
+  const n=selected.length;
+  if(randGroupSize>n && n>0){ randGroupSize=n; document.getElementById('rand-size-display').textContent=randGroupSize; }
+  const groups=randGroupSize>0?Math.floor(n/randGroupSize):0;
+  const leftover=randGroupSize>0?n%randGroupSize:0;
+  document.getElementById('rand-group-count').textContent=
+    n===0?'ยังไม่ได้เลือกสมาชิก':
+    `${n} คน → ได้ ${groups} กลุ่ม${leftover>0?' + เหลือ '+leftover+' คน':''}`;
+}
+
+function doRandom(){
+  const users=getUsers();
+  const pool=users.filter(u=>randSelected[u.id]);
+  if(pool.length===0){ alert('เลือกสมาชิกก่อนนะ!'); return; }
+  if(randGroupSize<1){ alert('ขนาดกลุ่มต้องมากกว่า 0'); return; }
+
+  // Fisher-Yates shuffle
+  const arr=[...pool];
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+
+  // Split into groups
+  const groups=[];
+  for(let i=0;i<arr.length;i+=randGroupSize){
+    groups.push(arr.slice(i,i+randGroupSize));
+  }
+
+  // Separate leftover if last group is smaller
+  let mainGroups=groups, leftover=[];
+  if(groups.length>1 && groups[groups.length-1].length<randGroupSize){
+    leftover=mainGroups.pop();
+  }
+
+  // Render result
+  const resultEl=document.getElementById('rand-result');
+  const groupColors=['#5b8def','#e05b8d','#5bde9e','#f0c46a','#c45bde','#de8a5b','#5bdede'];
+  resultEl.innerHTML=mainGroups.map((g,i)=>`
+    <div class="rand-group-box" style="animation-delay:${i*0.08}s">
+      <div class="rand-group-label">กลุ่มที่ ${i+1}</div>
+      <div>
+        ${g.map(u=>`
+          <span class="rand-name-chip" style="background:${groupColors[i%groupColors.length]}">
+            <span class="rand-chip-avatar">${initials(u.name)}</span>
+            ${u.name}
+          </span>`).join('')}
+      </div>
+    </div>`).join('')+
+    (leftover.length>0?`
+    <div class="rand-leftover">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:8px">⚠️ เหลือ (กลุ่มไม่ครบ)</div>
+      <div>${leftover.map(u=>`
+        <span class="rand-name-chip" style="background:rgba(240,196,106,.3);color:var(--accent4)">
+          <span class="rand-chip-avatar" style="background:rgba(240,196,106,.2)">${initials(u.name)}</span>
+          ${u.name}
+        </span>`).join('')}</div>
+    </div>`:'');
+
+  document.getElementById('rand-result-card').style.display='block';
+
+  // Save history
+  const hist=load('rand-history',[]);
+  const now=new Date();
+  hist.unshift({
+    time: now.toLocaleString('th-TH',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'}),
+    size: randGroupSize,
+    groups: mainGroups.map(g=>g.map(u=>u.name)),
+    leftover: leftover.map(u=>u.name)
+  });
+  save('rand-history', hist.slice(0,10)); // keep last 10
+  renderRandHistory();
+}
+
+function renderRandHistory(){
+  const hist=load('rand-history',[]);
+  const card=document.getElementById('rand-history-card');
+  const el=document.getElementById('rand-history');
+  if(hist.length===0){ card.style.display='none'; return; }
+  card.style.display='block';
+  el.innerHTML=hist.map(h=>`
+    <div class="rand-hist-item">
+      <span>${h.time} · กลุ่มละ ${h.size} คน</span>
+      <span style="color:var(--text3)">${h.groups.map((g,i)=>'กลุ่ม'+(i+1)+': '+g.join(', ')).join(' | ')}${h.leftover?.length?' | เหลือ: '+h.leftover.join(', '):''}</span>
+    </div>`).join('');
+}
+
+function clearRandHistory(){
+  save('rand-history',[]); renderRandHistory();
+}
+
+// ════════════════════════════════
+// INIT
+// ════════════════════════════════
+window.addEventListener('load',()=>{
+  // If already "logged in" via session flag
+  const sess=sessionStorage.getItem('gs_session');
+  if(sess){
+    const u=getUsers().find(x=>x.id===sess);
+    if(u){ currentUser=u; startApp(); return; }
+  }
+});
+
+
+</script>
+</body>
+</html>
