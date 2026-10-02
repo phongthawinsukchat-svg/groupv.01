@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ระเบิดพาราโบลา | Parabola Battleship</title>
+<style>
+  :root{
+    --bg:#060d16; --panel:#0e1b2a; --line:#1d3burn; --ink:#dce9f7;
+    --dim:#8aa6c2; --acc:#49d0ff; --hit:#ff5d5d; --ship:#4f6d8c; --ok:#4ade80;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 700px at 50% -10%,#123150,#060d16);
+       color:#dce9f7;font-family:"Segoe UI","Noto Sans Thai",system-ui,sans-serif}
+  #app{max-width:1060px;margin:0 auto;padding:18px}
+  h1{font-size:22px;margin:0 0 2px}
+  .sub{color:#8aa6c2;font-size:13px;margin-bottom:14px}
+  .panel{background:#0e1b2ae6;border:1px solid #1d3550;border-radius:14px;padding:16px;margin-bottom:14px}
+  .row{display:flex;gap:16px;flex-wrap:wrap}
+  .col{flex:1 1 320px;min-width:300px}
+  canvas{width:100%;max-width:520px;height:auto;border-radius:12px;border:1px solid #1d3550;display:block;touch-action:manipulation}
+  canvas.mini{max-width:280px}
+  button{background:#174766;color:#e8f4ff;border:1px solid #2b6f9b;border-radius:9px;
+         padding:9px 14px;font-size:14px;cursor:pointer;font-family:inherit}
+  button:hover{background:#1e5c85}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{background:#0f7ea8;border-color:#49d0ff}
+  button.primary:hover{background:#1596c4}
+  input,select{background:#081623;color:#dce9f7;border:1px solid #2b4a68;border-radius:8px;
+               padding:8px 10px;font-size:15px;font-family:inherit;width:90px}
+  label{font-size:13px;color:#8aa6c2}
+  .eq{font-size:17px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .msg{font-size:15px;line-height:1.6;margin-top:10px;white-space:pre-line}
+  .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;
+         background:#16324b;border:1px solid #2b6f9b;margin-right:6px}
+  .big{font-size:26px;font-weight:700;margin:6px 0 14px}
+  .hide{display:none}
+  .legend{font-size:12px;color:#8aa6c2;margin-top:8px;line-height:1.8}
+  .ship-chip{display:inline-block;background:#16324b;border:1px solid #2b6f9b;border-radius:8px;
+             padding:6px 10px;margin:4px 6px 4px 0;font-size:13px}
+  .ship-chip.done{background:#14402c;border-color:#4ade80}
+  .center{text-align:center}
+  ul{margin:6px 0 0 18px;padding:0;font-size:13px;color:#8aa6c2;line-height:1.8}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>ระเบิดพาราโบลา — Parabola Battleship</h1>
+  <div class="sub">กระดาน 100 ช่อง · x = -10 ถึง 10 · y = -10 ถึง 10 · ยิงด้วยสมการพาราโบลา</div>
+
+  <!-- ===== หน้าเริ่ม ===== -->
+  <section id="sc-start" class="panel">
+    <div class="big">ตั้งค่าเกม</div>
+    <div class="row">
+      <div class="col">
+        <div style="margin-bottom:12px">
+          <label>แรงระเบิดต่อ 1 นัด</label><br>
+          <select id="blast" style="width:auto">
+            <option value="3">3 ช่องใกล้จุดยอดที่สุด (ยาก)</option>
+            <option value="5" selected>5 ช่องใกล้จุดยอดที่สุด (ปกติ)</option>
+            <option value="8">8 ช่องใกล้จุดยอดที่สุด (ง่าย)</option>
+            <option value="0">ทุกช่องที่เส้นลากผ่าน (โหด/จบไว)</option>
+          </select>
+        </div>
+        <button class="primary" onclick="startGame()">เริ่มเกม</button>
+      </div>
+      <div class="col">
+        <b style="font-size:14px">วิธีเล่น</b>
+        <ul>
+          <li>ผู้เล่น 1 ซ่อนเรือ 2 ลำ (เล็ก 2 ช่อง / ใหญ่ 3 ช่อง) แล้วส่งเครื่องให้ผู้เล่น 2 ซ่อนบ้าง</li>
+          <li>ผลัดกันยิงโดยป้อนสมการ y = ax² + bx + c หรือแบบจุดยอด y = a(x-h)² + k</li>
+          <li>เส้นโค้งพาดผ่านช่องใด ช่องนั้นระเบิด (นับจากจุดยอดออกไปตามแรงระเบิดที่ตั้งไว้)</li>
+          <li>ใครจมเรือครบ 2 ลำของอีกฝ่ายก่อน ชนะ</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== หน้าวางเรือ ===== -->
+  <section id="sc-place" class="panel hide">
+    <div class="big" id="place-title"></div>
+    <div class="row">
+      <div class="col">
+        <canvas id="cv-place" width="520" height="520"></canvas>
+        <div class="legend">คลิกช่องบนกระดานเพื่อวางเรือ (จุดที่คลิก = หัวเรือ) · กด R เพื่อหมุน</div>
+      </div>
+      <div class="col">
+        <div id="ship-list"></div>
+        <div class="eq" style="margin-top:14px">
+          <button onclick="rotate()">หมุนทิศ: <span id="orient-label">แนวนอน →</span></button>
+          <button onclick="randomPlace()">สุ่มวางให้</button>
+          <button onclick="clearShips()">ล้างกระดาน</button>
+        </div>
+        <button class="primary" id="btn-ready" disabled onclick="readyPlace()">พร้อมรบ</button>
+        <div class="msg" id="place-msg"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== หน้าส่งเครื่อง ===== -->
+  <section id="sc-pass" class="panel center hide">
+    <div class="big" id="pass-title"></div>
+    <div class="msg" id="pass-msg" style="margin-bottom:16px"></div>
+    <button class="primary" onclick="passDone()">ฉันพร้อมแล้ว</button>
+  </section>
+
+  <!-- ===== หน้ายิง ===== -->
+  <section id="sc-fire" class="panel hide">
+    <div class="big" id="fire-title"></div>
+    <div class="row">
+      <div class="col">
+        <canvas id="cv-enemy" width="520" height="520"></canvas>
+        <div class="legend">
+          <span class="badge" style="background:#4a1414;border-color:#ff5d5d">X</span> ยิงโดนเรือ
+          <span class="badge">·</span> ยิงพลาด
+          <span style="color:#ffcf5c">— เส้นทางระเบิดของคุณ</span>
+        </div>
+      </div>
+      <div class="col">
+        <div style="margin-bottom:8px">
+          <label>รูปแบบสมการ</label>
+          <select id="eqmode" style="width:auto" onchange="switchMode()">
+            <option value="std">y = ax² + bx + c</option>
+            <option value="vtx">y = a(x − h)² + k</option>
+          </select>
+        </div>
+        <div class="eq" id="form-std">
+          y = <input id="in-a" type="number" step="0.1" value="0.2">x² +
+          <input id="in-b" type="number" step="0.1" value="0">x +
+          <input id="in-c" type="number" step="0.1" value="0">
+        </div>
+        <div class="eq hide" id="form-vtx">
+          y = <input id="in-a2" type="number" step="0.1" value="0.5">(x −
+          <input id="in-h" type="number" step="1" value="0">)² +
+          <input id="in-k" type="number" step="1" value="0">
+        </div>
+        <button class="primary" onclick="fire()">ยิง!</button>
+        <button onclick="preview()">ดูเส้นก่อนยิง</button>
+        <div class="msg" id="fire-msg"></div>
+        <div style="margin-top:16px">
+          <label>กระดานของคุณ (เรือ + รอยยิงของศัตรู)</label>
+          <canvas id="cv-own" class="mini" width="520" height="520"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== หน้าผลยิง ===== -->
+  <section id="sc-result" class="panel hide">
+    <div class="big" id="res-title"></div>
+    <div class="row">
+      <div class="col"><canvas id="cv-res" width="520" height="520"></canvas></div>
+      <div class="col">
+        <div class="msg" id="res-msg"></div>
+        <div style="margin-top:16px"><button class="primary" onclick="endTurn()">จบตา / ส่งเครื่อง</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== หน้าจบเกม ===== -->
+  <section id="sc-win" class="panel center hide">
+    <div class="big" id="win-title"></div>
+    <div class="msg" id="win-msg" style="margin-bottom:16px"></div>
+    <button class="primary" onclick="location.reload()">เล่นใหม่</button>
+  </section>
+</div>
+
+<script>
+/* ========= ค่าคงที่ของกระดาน ========= */
+const N = 10, MIN = -10, MAX = 10, CELL = 2, PAD = 34;
+const FLEET = [ {name:'เรือเล็ก', len:2}, {name:'เรือใหญ่', len:3} ];
+
+/* ========= ตัวช่วยพิกัด ========= */
+const centerOf = (i,j) => ({ x: MIN + CELL*i + CELL/2, y: MAX - CELL*j - CELL/2 });
+function pointToCell(x,y){
+  if(x < MIN || x > MAX || y < MIN || y > MAX) return null;
+  let i = Math.floor((x - MIN)/CELL), j = Math.floor((MAX - y)/CELL);
+  i = Math.max(0, Math.min(N-1, i)); j = Math.max(0, Math.min(N-1, j));
+  return {i,j};
+}
+const PX = (cv,x) => PAD + (x - MIN)/(MAX-MIN) * (cv.width  - 2*PAD);
+const PY = (cv,y) => PAD + (MAX - y)/(MAX-MIN) * (cv.height - 2*PAD);
+
+/* ========= สถานะเกม ========= */
+const S = {
+  blast: 5,
+  boards: [grid(), grid()],      // boards[p][j][i] = index ของเรือ หรือ null
+  ships : [[], []],              // ships[p] = [{name,len,cells,hits}]
+  shots : [shotGrid(), shotGrid()], // shots[p] = รอยยิง "ที่ยิงใส่" ผู้เล่น p
+  curves: [[], []],              // curves[p] = เส้นที่ผู้เล่น p ยิงออกไป
+  placeP: 0, shipIdx: 0, orient: 'h', hover: null,
+  cur: 0, pending: null, lastHits: [], turn: 1
+};
+function grid(){ return Array.from({length:N}, () => Array(N).fill(null)); }
+function shotGrid(){ return Array.from({length:N}, () => Array(N).fill(null)); }
+
+/* ========= สลับหน้าจอ ========= */
+const SCREENS = ['sc-start','sc-place','sc-pass','sc-fire','sc-result','sc-win'];
+function show(id){ SCREENS.forEach(s => document.getElementById(s).classList.toggle('hide', s !== id)); }
+
+/* ========= วาดกระดาน ========= */
+function drawBoard(cv, o){
+  const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#071423'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = '#081d30';
+  ctx.fillRect(PX(cv,MIN), PY(cv,MAX), PX(cv,MAX)-PX(cv,MIN), PY(cv,MIN)-PY(cv,MAX));
+
+  // เส้นกริด
+  ctx.lineWidth = 1; ctx.strokeStyle = '#13304c';
+  for(let k=0;k<=N;k++){
+    const v = MIN + CELL*k;
+    ctx.beginPath(); ctx.moveTo(PX(cv,v), PY(cv,MAX)); ctx.lineTo(PX(cv,v), PY(cv,MIN)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(PX(cv,MIN), PY(cv,v)); ctx.lineTo(PX(cv,MAX), PY(cv,v)); ctx.stroke();
+  }
+  // แกน
+  ctx.lineWidth = 2; ctx.strokeStyle = '#4f84b5';
+  ctx.beginPath(); ctx.moveTo(PX(cv,MIN), PY(cv,0)); ctx.lineTo(PX(cv,MAX), PY(cv,0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(PX(cv,0), PY(cv,MAX)); ctx.lineTo(PX(cv,0), PY(cv,MIN)); ctx.stroke();
+  // ตัวเลขกำกับแกน
+  ctx.fillStyle = '#7f9cba'; ctx.font = '11px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for(let v=MIN; v<=MAX; v+=2){ if(v!==0) ctx.fillText(v, PX(cv,v), PY(cv,MIN)+6); }
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for(let v=MIN; v<=MAX; v+=2){ if(v!==0) ctx.fillText(v, PX(cv,0)-6 > PAD ? PAD-6 : PAD-6, PY(cv,v)); }
+  ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillStyle='#4f84b5';
+  ctx.fillText('x', PX(cv,MAX)+4, PY(cv,0)-14); ctx.fillText('y', PX(cv,0)+6, PAD-18);
+
+  // เรือของตัวเอง
+  if(o.showShips){
+    S.ships[o.p].forEach((sh, si) => {
+      const sunk = sh.hits.size === sh.len;
+      sh.cells.forEach(c => {
+        const x0 = PX(cv, MIN+CELL*c.i)+3, y0 = PY(cv, MAX-CELL*c.j)+3;
+        const w = PX(cv,MIN+CELL)-PX(cv,MIN)-6, h = PY(cv,MAX-CELL)-PY(cv,MAX)-6;
+        ctx.fillStyle = sunk ? '#5a1f1f' : '#3c5c7d';
+        ctx.fillRect(x0,y0,w,h);
+        ctx.strokeStyle = sunk ? '#ff5d5d' : '#7fb0dc'; ctx.lineWidth=1.5;
+        ctx.strokeRect(x0,y0,w,h);
+      });
+    });
+  }
+
+  // เส้นพาราโบลาที่เคยยิง
+  (o.curves||[]).forEach((cu, idx) => {
+    const last = idx === o.curves.length-1;
+    drawCurve(ctx, cv, cu.a, cu.b, cu.c, last ? '#ffd45c' : 'rgba(255,212,92,.25)', last?2.2:1.2);
+  });
+  if(o.preview) drawCurve(ctx, cv, o.preview.a, o.preview.b, o.preview.c, '#49d0ff', 2, true);
+
+  // รอยยิง
+  const sh = o.shots;
+  if(sh) for(let j=0;j<N;j++) for(let i=0;i<N;i++){
+    const m = sh[j][i]; if(!m) continue;
+    const c = centerOf(i,j), cx = PX(cv,c.x), cy = PY(cv,c.y);
+    if(m === 'hit'){
+      ctx.strokeStyle = '#ff5d5d'; ctx.lineWidth = 3; const r = 9;
+      ctx.beginPath(); ctx.moveTo(cx-r,cy-r); ctx.lineTo(cx+r,cy+r);
+      ctx.moveTo(cx+r,cy-r); ctx.lineTo(cx-r,cy+r); ctx.stroke();
+    } else {
+      ctx.fillStyle = '#86a8c9'; ctx.beginPath(); ctx.arc(cx,cy,3.5,0,7); ctx.fill();
+    }
+  }
+
+  // พรีวิวตอนวางเรือ
+  if(o.ghost){
+    o.ghost.cells.forEach(c => {
+      const x0 = PX(cv, MIN+CELL*c.i)+3, y0 = PY(cv, MAX-CELL*c.j)+3;
+      const w = PX(cv,MIN+CELL)-PX(cv,MIN)-6, h = PY(cv,MAX-CELL)-PY(cv,MAX)-6;
+      ctx.fillStyle = o.ghost.ok ? 'rgba(74,222,128,.35)' : 'rgba(255,93,93,.35)';
+      ctx.fillRect(x0,y0,w,h);
+    });
+  }
+}
+
+function drawCurve(ctx, cv, a, b, c, color, lw, dash){
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(PX(cv,MIN), PY(cv,MAX), PX(cv,MAX)-PX(cv,MIN), PY(cv,MIN)-PY(cv,MAX));
+  ctx.clip();
+  ctx.strokeStyle = color; ctx.lineWidth = lw; if(dash) ctx.setLineDash([6,5]);
+  ctx.beginPath();
+  let started = false;
+  for(let s=0; s<=1200; s++){
+    const x = MIN + (MAX-MIN)*s/1200, y = a*x*x + b*x + c;
+    const pxx = PX(cv,x), pyy = PY(cv,y);
+    if(y < MIN-4 || y > MAX+4){ started = false; continue; }
+    if(!started){ ctx.moveTo(pxx,pyy); started = true; } else ctx.lineTo(pxx,pyy);
+  }
+  ctx.stroke(); ctx.restore();
+}
+
+/* ========= คำนวณช่องที่เส้นโค้งพาดผ่าน ========= */
+function curveCells(a,b,c){
+  const vx = -b/(2*a), map = new Map();
+  const add = (i,j,x) => {
+    const key = i+','+j, d = Math.abs(x - vx);
+    if(!map.has(key) || map.get(key).d > d) map.set(key, {i,j,d});
+  };
+  let prev = null;
+  const STEPS = 8000;
+  for(let s=0; s<=STEPS; s++){
+    const x = MIN + (MAX-MIN)*s/STEPS, y = a*x*x + b*x + c;
+    const cl = pointToCell(x,y);
+    if(!cl){ prev = null; continue; }
+    add(cl.i, cl.j, x);
+    if(prev && prev.i === cl.i && Math.abs(prev.j - cl.j) > 1){
+      const st = prev.j < cl.j ? 1 : -1;
+      for(let j = prev.j+st; j !== cl.j; j += st) add(cl.i, j, x);
+    }
+    prev = cl;
+  }
+  let list = [...map.values()].sort((p,q) => p.d - q.d);
+  if(S.blast > 0) list = list.slice(0, S.blast);
+  return list;
+}
+
+/* ========= เริ่มเกม / วางเรือ ========= */
+function startGame(){
+  S.blast = +document.getElementById('blast').value;
+  S.placeP = 0; S.shipIdx = 0;
+  show('sc-place'); renderPlace();
+}
+function renderPlace(){
+  document.getElementById('place-title').textContent = 'ผู้เล่น ' + (S.placeP+1) + ' — ซ่อนเรือของคุณ';
+  const list = document.getElementById('ship-list');
+  list.innerHTML = FLEET.map((f,idx) => {
+    const done = idx < S.ships[S.placeP].length;
+    const now  = idx === S.ships[S.placeP].length;
+    return `<span class="ship-chip ${done?'done':''}">${f.name} · ${f.len} ช่อง ${done?'✔ วางแล้ว':(now?'◀ กำลังวาง':'')}</span>`;
+  }).join('');
+  document.getElementById('orient-label').textContent = S.orient==='h' ? 'แนวนอน →' : 'แนวตั้ง ↓';
+  document.getElementById('btn-ready').disabled = S.ships[S.placeP].length < FLEET.length;
+  const g = S.hover ? ghostAt(S.hover) : null;
+  drawBoard(document.getElementById('cv-place'),
+            { p:S.placeP, showShips:true, shots:null, ghost:g });
+}
+function ghostAt(cell){
+  const idx = S.ships[S.placeP].length; if(idx >= FLEET.length) return null;
+  const len = FLEET[idx].len, cells = [];
+  for(let k=0;k<len;k++) cells.push(S.orient==='h' ? {i:cell.i+k, j:cell.j} : {i:cell.i, j:cell.j+k});
+  return { cells: cells.filter(c=>c.i<N&&c.j<N), ok: canPlace(cells) };
+}
+function canPlace(cells){
+  return cells.every(c => c.i>=0 && c.i<N && c.j>=0 && c.j<N && S.boards[S.placeP][c.j][c.i] === null);
+}
+function rotate(){ S.orient = S.orient==='h' ? 'v' : 'h'; renderPlace(); }
+function clearShips(){ S.boards[S.placeP]=grid(); S.ships[S.placeP]=[]; renderPlace(); }
+function randomPlace(){
+  clearShips();
+  FLEET.forEach(f => {
+    for(;;){
+      const hor = Math.random()<.5;
+      const i = Math.floor(Math.random()*(hor?N-f.len+1:N));
+      const j = Math.floor(Math.random()*(hor?N:N-f.len+1));
+      const cells = []; for(let k=0;k<f.len;k++) cells.push(hor?{i:i+k,j}:{i,j:j+k});
+      if(canPlace(cells)){ commitShip(f, cells); break; }
+    }
+  });
+  renderPlace();
+}
+function commitShip(f, cells){
+  const p = S.placeP, idx = S.ships[p].length;
+  S.ships[p].push({ name:f.name, len:f.len, cells, hits:new Set() });
+  cells.forEach(c => S.boards[p][c.j][c.i] = idx);
+}
+function readyPlace(){
+  if(S.placeP === 0){
+    S.placeP = 1; S.shipIdx = 0; S.hover = null;
+    goPass('ส่งเครื่องให้ผู้เล่น 2', 'ผู้เล่น 1 ซ่อนเรือเสร็จแล้ว — ห้ามแอบดูนะ!', () => { show('sc-place'); renderPlace(); });
+  } else {
+    S.cur = 0; S.turn = 1;
+    goPass('เริ่มการรบ — ตาของผู้เล่น 1', 'ทั้งสองฝ่ายซ่อนเรือเรียบร้อย เริ่มยิงพาราโบลาได้เลย', renderFire);
+  }
+}
+
+/* ========= หน้าส่งเครื่อง ========= */
+function goPass(title, msg, next){
+  document.getElementById('pass-title').textContent = title;
+  document.getElementById('pass-msg').textContent = msg;
+  S.pending = next; show('sc-pass');
+}
+function passDone(){ const f = S.pending; S.pending = null; f && f(); }
+
+/* ========= หน้ายิง ========= */
+function switchMode(){
+  const m = document.getElementById('eqmode').value;
+  document.getElementById('form-std').classList.toggle('hide', m!=='std');
+  document.getElementById('form-vtx').classList.toggle('hide', m!=='vtx');
+}
+function readEq(){
+  let a,b,c;
+  if(document.getElementById('eqmode').value === 'std'){
+    a = +document.getElementById('in-a').value;
+    b = +document.getElementById('in-b').value;
+    c = +document.getElementById('in-c').value;
+  } else {
+    a = +document.getElementById('in-a2').value;
+    const h = +document.getElementById('in-h').value, k = +document.getElementById('in-k').value;
+    b = -2*a*h; c = a*h*h + k;
+  }
+  if(!isFinite(a)||!isFinite(b)||!isFinite(c)) return null;
+  if(a === 0) return null;
+  return {a,b,c};
+}
+function renderFire(pv){
+  const enemy = 1 - S.cur;
+  document.getElementById('fire-title').textContent =
+    'ตาที่ ' + S.turn + ' — ผู้เล่น ' + (S.cur+1) + ' ยิงใส่ผู้เล่น ' + (enemy+1);
+  drawBoard(document.getElementById('cv-enemy'),
+    { p:enemy, showShips:false, shots:S.shots[enemy], curves:S.curves[S.cur], preview:pv });
+  drawBoard(document.getElementById('cv-own'),
+    { p:S.cur, showShips:true, shots:S.shots[S.cur], curves:S.curves[enemy] });
+  show('sc-fire');
+}
+function preview(){
+  const eq = readEq();
+  if(!eq){ document.getElementById('fire-msg').textContent = 'สมการไม่ถูกต้อง (a ต้องไม่เท่ากับ 0)'; return; }
+  document.getElementById('fire-msg').textContent = 'เส้นประฟ้า = วิถีระเบิดที่จะยิง · จุดยอดอยู่ที่ x = ' + (-eq.b/(2*eq.a)).toFixed(2);
+  renderFire(eq);
+}
+function fire(){
+  const eq = readEq();
+  if(!eq){ document.getElementById('fire-msg').textContent = 'สมการไม่ถูกต้อง (a ต้องไม่เท่ากับ 0)'; return; }
+  const me = S.cur, enemy = 1 - S.cur;
+  const cells = curveCells(eq.a, eq.b, eq.c);
+  S.curves[me].push(eq);
+
+  let hit = 0, miss = 0; const sunk = [];
+  cells.forEach(c => {
+    const si = S.boards[enemy][c.j][c.i];
+    if(si !== null){
+      const ship = S.ships[enemy][si];
+      if(!ship.hits.has(c.i+','+c.j)){
+        ship.hits.add(c.i+','+c.j);
+        if(ship.hits.size === ship.len) sunk.push(ship.name);
+      }
+      if(S.shots[enemy][c.j][c.i] !== 'hit') hit++;
+      S.shots[enemy][c.j][c.i] = 'hit';
+    } else {
+      if(!S.shots[enemy][c.j][c.i]) miss++;
+      S.shots[enemy][c.j][c.i] = 'miss';
+    }
+  });
+
+  const alive = S.ships[enemy].filter(s => s.hits.size < s.len).length;
+  const eqText = `y = ${eq.a}x² ${eq.b<0?'−':'+'} ${Math.abs(eq.b)}x ${eq.c<0?'−':'+'} ${Math.abs(eq.c)}`;
+  const coords = cells.map(c => { const p = centerOf(c.i,c.j); return `(${p.x},${p.y})`; }).join(' ');
+
+  let msg = `ยิงด้วย ${eqText}\nจุดยอด (${(-eq.b/(2*eq.a)).toFixed(2)}, ${((4*eq.a*eq.c-eq.b*eq.b)/(4*eq.a)).toFixed(2)})\n`;
+  msg += `ช่องที่ระเบิด: ${coords || '— ไม่โดนกระดานเลย —'}\n`;
+  msg += hit > 0 ? `💥 โดนเรือ ${hit} ช่อง!\n` : `…พลาด ไม่โดนเรือเลย\n`;
+  if(sunk.length) msg += `🔥 จม${sunk.join(' และ ')}ของผู้เล่น ${enemy+1}!\n`;
+  msg += `เรือศัตรูที่ยังลอยอยู่: ${alive} ลำ`;
+
+  if(alive === 0){
+    document.getElementById('win-title').textContent = '🏆 ผู้เล่น ' + (me+1) + ' ชนะ!';
+    document.getElementById('win-msg').textContent = msg;
+    show('sc-win'); return;
+  }
+  document.getElementById('res-title').textContent = 'ผลการยิงของผู้เล่น ' + (me+1);
+  document.getElementById('res-msg').textContent = msg;
+  drawBoard(document.getElementById('cv-res'),
+    { p:enemy, showShips:false, shots:S.shots[enemy], curves:S.curves[me] });
+  show('sc-result');
+}
+function endTurn(){
+  S.cur = 1 - S.cur; S.turn++;
+  goPass('ส่งเครื่องให้ผู้เล่น ' + (S.cur+1), 'ตาของผู้เล่น ' + (S.cur+1) + ' แล้ว', renderFire);
+}
+
+/* ========= อินพุตจากเมาส์ ========= */
+function cvPoint(cv, e){
+  const r = cv.getBoundingClientRect();
+  const mx = (e.clientX - r.left) * (cv.width / r.width);
+  const my = (e.clientY - r.top ) * (cv.height / r.height);
+  const x = MIN + (mx - PAD)/(cv.width  - 2*PAD) * (MAX-MIN);
+  const y = MAX - (my - PAD)/(cv.height - 2*PAD) * (MAX-MIN);
+  return pointToCell(x,y);
+}
+const cvPlace = document.getElementById('cv-place');
+cvPlace.addEventListener('mousemove', e => { const c = cvPoint(cvPlace,e); S.hover = c; renderPlace(); });
+cvPlace.addEventListener('mouseleave', () => { S.hover = null; renderPlace(); });
+cvPlace.addEventListener('click', e => {
+  const c = cvPoint(cvPlace,e); if(!c) return;
+  const idx = S.ships[S.placeP].length; if(idx >= FLEET.length) return;
+  const g = ghostAt(c);
+  if(g && g.ok && g.cells.length === FLEET[idx].len){
+    commitShip(FLEET[idx], g.cells);
+    document.getElementById('place-msg').textContent = '';
+  } else {
+    document.getElementById('place-msg').textContent = 'วางตรงนี้ไม่ได้ (เลยขอบกระดาน หรือทับเรือลำอื่น)';
+  }
+  renderPlace();
+});
+window.addEventListener('keydown', e => { if(e.key.toLowerCase() === 'r' && !document.getElementById('sc-place').classList.contains('hide')) rotate(); });
+</script>
+</body>
+</html>
